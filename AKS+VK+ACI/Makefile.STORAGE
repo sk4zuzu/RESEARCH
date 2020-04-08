@@ -1,0 +1,67 @@
+# Please take a look at https://docs.microsoft.com/bs-latn-ba/azure/terraform/terraform-backend for more info.
+# Please notice all "az ... create" commands (used here) seem to be idempotent.
+
+SELF := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+LIVE := $(SELF)/LIVE
+
+include $(SELF)/Makefile.ENV
+
+define GET_ACCOUNT_KEY
+az storage account keys list \
+	--resource-group $(RESOURCE_GROUP_NAME) \
+	--account-name $(STORAGE_ACCOUNT_NAME) \
+	--query "[0].value" \
+	--output tsv
+endef
+
+define TERRAGRUNT_HCL
+# managed by Makefile.STORAGE
+remote_state {
+  backend = "azurerm"
+  config = {
+    resource_group_name  = "$(RESOURCE_GROUP_NAME)"
+    storage_account_name = "$(STORAGE_ACCOUNT_NAME)"
+    container_name       = "$(CONTAINER_NAME)"
+    key                  = "$${path_relative_to_include()}/terraform.tfstate"
+  }
+}
+endef
+
+export
+
+.PHONY: all setup
+
+all: setup
+
+setup: container terragrunt_hcl
+
+.PHONY: terragrunt_hcl
+
+terragrunt_hcl:
+	install -d $(LIVE)/
+	tee $(LIVE)/terragrunt.hcl <<< "$$TERRAGRUNT_HCL"
+
+.PHONY: resource_group storage_account account_key container
+
+resource_group:
+	az group create \
+	   --name $(RESOURCE_GROUP_NAME) \
+	   --location $(LOCATION)
+
+storage_account: resource_group
+	az storage account create \
+	   --name $(STORAGE_ACCOUNT_NAME) \
+	   --resource-group $(RESOURCE_GROUP_NAME) \
+	   --sku Standard_LRS \
+	   --encryption-services blob
+
+account_key: storage_account
+	@: $(eval ACCOUNT_KEY := $(shell $(GET_ACCOUNT_KEY)))
+
+container: account_key
+	az storage container create \
+	   --name $(CONTAINER_NAME) \
+	   --account-name $(STORAGE_ACCOUNT_NAME) \
+	   --account-key $(ACCOUNT_KEY)
+
+# vim:ts=4:sw=4:noet:

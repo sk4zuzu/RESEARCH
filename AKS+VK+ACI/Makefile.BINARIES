@@ -1,0 +1,119 @@
+
+FLAVOR := linux
+
+HELM_VERSION                          ?= 3.1.2
+KUBECTL_VERSION                       ?= 1.15.10
+TERRAFORM_VERSION                     ?= 0.12.24
+TERRAFORM_PROVIDER_AZUREAD_VERSION    ?= 0.8.0
+TERRAFORM_PROVIDER_AZURERM_VERSION    ?= 2.3.0
+TERRAFORM_PROVIDER_HELM_VERSION       ?= 1.1.1
+TERRAFORM_PROVIDER_KUBERNETES_VERSION ?= 1.11.1
+TERRAFORM_PROVIDER_NULL_VERSION       ?= 2.1.2
+TERRAFORM_PROVIDER_RANDOM_VERSION     ?= 2.2.1
+TERRAGRUNT_VERSION                    ?= 0.23.4
+
+_GOPATH_ ?= $(HOME)/go
+
+TARGETS = \
+$(_GOPATH_)/bin/helm \
+$(_GOPATH_)/bin/kubectl \
+$(_GOPATH_)/bin/terraform \
+$(_GOPATH_)/bin/terraform-provider-azuread \
+$(_GOPATH_)/bin/terraform-provider-azurerm \
+$(_GOPATH_)/bin/terraform-provider-helm \
+$(_GOPATH_)/bin/terraform-provider-kubernetes \
+$(_GOPATH_)/bin/terraform-provider-null \
+$(_GOPATH_)/bin/terraform-provider-random \
+$(_GOPATH_)/bin/terragrunt
+
+define HELM_RELEASE_INSTALL
+.PHONY: $(GOPATH)/bin/$(1)
+$(GOPATH)/bin/$(1): $(GOPATH)/bin/$(1)-$(2)
+	rm -f $$@ && ln -s $$< $$@
+$(GOPATH)/bin/$(1)-$(2):
+	curl -fSL https://get.helm.sh/$(1)-v$(2)-$(FLAVOR)-amd64.tar.gz \
+	| tar -xz -f- --strip-components=1 -C /tmp/ $(FLAVOR)-amd64/$(1) \
+	&& mv -f /tmp/$(1) $$@ \
+	&& chmod +x $$@
+endef
+
+define KUBERNETES_RELEASE_INSTALL
+.PHONY: $(_GOPATH_)/bin/$(1)
+$(_GOPATH_)/bin/$(1): $(_GOPATH_)/bin/$(1)-$(2)
+	rm -f $$@ && ln -s $$< $$@
+$(_GOPATH_)/bin/$(1)-$(2):
+	curl -fSL https://storage.googleapis.com/kubernetes-release/release/v$(2)/bin/$(FLAVOR)/amd64/$(1) \
+	     -o $$@ \
+	&& chmod +x $$@
+endef
+
+define HASHICORP_RELEASE_INSTALL
+.PHONY: $(_GOPATH_)/bin/$(1)
+$(_GOPATH_)/bin/$(1): $(_GOPATH_)/bin/$(1)-$(2)
+	rm -f $$@ && ln -s $$< $$@
+$(_GOPATH_)/bin/$(1)-$(2):
+	mkdir -p /tmp/$(1)-$(2)/ \
+	&& curl -fSL https://releases.hashicorp.com/$(1)/$(2)/$(1)_$(2)_$(FLAVOR)_amd64.zip \
+	        -o /tmp/$(1)-$(2)/download.zip \
+	&& unzip -o -d /tmp/$(1)-$(2)/ /tmp/$(1)-$(2)/download.zip \
+	&& mv /tmp/$(1)-$(2)/$(1)* $$@ \
+	&& rm -rf /tmp/$(1)-$(2)/ \
+	&& chmod +x $$@
+endef
+
+define TERRAGRUNT_RELEASE_INSTALL
+.PHONY: $(_GOPATH_)/bin/$(1)
+$(_GOPATH_)/bin/$(1): $(_GOPATH_)/bin/$(1)-$(2)
+	rm -f $$@ && ln -s $$< $$@
+$(_GOPATH_)/bin/$(1)-$(2):
+	curl -fSL https://github.com/gruntwork-io/$(1)/releases/download/v$(2)/$(1)_$(FLAVOR)_amd64 \
+	     -o $$@ \
+	&& chmod +x $$@
+endef
+
+PIP_REQUIREMENTS = \
+azure-cli
+
+export
+
+.PHONY: all pip clean
+
+all: $(TARGETS) pip
+
+pip:
+	unset SOURCE_DATE_EPOCH && pip3 --no-cache-dir install $(PIP_REQUIREMENTS)
+
+clean:
+	rm -f $(TARGETS)
+
+$(eval \
+	$(call HELM_RELEASE_INSTALL,helm,$(HELM_VERSION)))
+
+$(eval \
+	$(call KUBERNETES_RELEASE_INSTALL,kubectl,$(KUBECTL_VERSION)))
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform,$(TERRAFORM_VERSION)))
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform-provider-azuread,$(TERRAFORM_PROVIDER_AZUREAD_VERSION)))
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform-provider-azurerm,$(TERRAFORM_PROVIDER_AZURERM_VERSION)))
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform-provider-helm,$(TERRAFORM_PROVIDER_HELM_VERSION)))
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform-provider-kubernetes,$(TERRAFORM_PROVIDER_KUBERNETES_VERSION)))
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform-provider-null,$(TERRAFORM_PROVIDER_NULL_VERSION)))
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform-provider-random,$(TERRAFORM_PROVIDER_RANDOM_VERSION)))
+
+$(eval \
+	$(call TERRAGRUNT_RELEASE_INSTALL,terragrunt,$(TERRAGRUNT_VERSION)))
+
+# vim:ts=4:sw=4:noet:syn=make:
