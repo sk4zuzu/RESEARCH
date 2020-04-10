@@ -1,55 +1,52 @@
 
-resource "kubernetes_deployment" "kubernetes-helloworld" {
+resource "kubernetes_deployment" "kubernetes-cpuhog" {
   count = var.enable_provisioning ? 1 : 0
 
   depends_on = [ helm_release.helm-virtual-kubelet ]
 
   metadata {
-    name = "helloworld"
+    name = "cpuhog"
     labels = {
-      test = "helloworld"
+      test = "cpuhog"
     }
   }
 
   spec {
-    replicas = 3
+    replicas = 1
 
     selector {
       match_labels = {
-        test = "helloworld"
+        test = "cpuhog"
       }
     }
 
     template {
       metadata {
         labels = {
-          test = "helloworld"
+          test = "cpuhog"
         }
       }
 
       spec {
         container {
-          name = "helloworld"
+          name = "cpuhog"
 
-          image             = "microsoft/aci-helloworld"
+          image             = "sk4zuzu/cpuhog"
           image_pull_policy = "Always"
 
           resources {
+            limits {
+              cpu = 0.2
+            }
             requests {
-              memory = 16
-              cpu    = 1
+              cpu = 0.2
             }
           }
 
           port {
             name           = "http"
             protocol       = "TCP"
-            container_port = 80
-          }
-
-          port {
-            name           = "https"
-            container_port = 443
+            container_port = 8000
           }
         }
 
@@ -72,6 +69,57 @@ resource "kubernetes_deployment" "kubernetes-helloworld" {
         }
       }
     }
+  }
+}
+
+resource "kubernetes_service" "kubernetes-cpuhog" {
+  count = var.enable_provisioning ? 1 : 0
+
+  depends_on = [ helm_release.helm-virtual-kubelet ]
+
+  metadata {
+    name = "cpuhog"
+    labels = {
+      test = "cpuhog"
+    }
+  }
+
+  spec {
+    type = "ClusterIP"
+
+    selector = {
+      test = "cpuhog"
+    }
+
+    port {
+      port        = 8000
+      target_port = 8000
+    }
+  }
+}
+
+resource "kubernetes_horizontal_pod_autoscaler" "kubernetes-cpuhog" {
+  count = var.enable_provisioning ? 1 : 0
+
+  depends_on = [ helm_release.helm-virtual-kubelet ]
+
+  metadata {
+    name = "cpuhog"
+    labels = {
+      test = "cpuhog"
+    }
+  }
+
+  spec {
+    scale_target_ref {
+      kind = "Deployment"
+      name = "cpuhog"
+    }
+
+    min_replicas = 1
+    max_replicas = 4
+
+    target_cpu_utilization_percentage = 50
   }
 }
 

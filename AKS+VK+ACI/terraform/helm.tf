@@ -1,7 +1,5 @@
 
 resource "helm_release" "helm-virtual-kubelet" {
-  count = var.enable_provisioning ? 1 : 0
-
   name = "virtual-kubelet"
 
   chart = "https://github.com/virtual-kubelet/virtual-kubelet/raw/master/charts/virtual-kubelet-latest.tgz"
