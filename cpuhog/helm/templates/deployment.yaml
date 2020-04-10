@@ -1,0 +1,35 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "cpuhog.fullname" . }}
+  labels:
+    app: &app {{ template "cpuhog.name" . }}
+    release: &release {{ .Release.Name }}
+    chart: {{ template "cpuhog.chart" . }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: *app
+      release: *release
+  template:
+    metadata:
+      labels:
+        app: *app
+        release: *release
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              cpu: 0.5
+            requests:
+              cpu: 0.2
+      restartPolicy: Always
+# vim:ts=2:sw=2:et:syn=yaml:

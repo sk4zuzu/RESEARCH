@@ -1,0 +1,4 @@
+*.swp
+*.swo
+/cmd/cpuhog/debug
+/cmd/cpuhog/cpuhog

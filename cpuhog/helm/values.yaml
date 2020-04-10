@@ -1,0 +1,13 @@
+
+replicas: 1
+
+image:
+  repository: sk4zuzu/cpuhog
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 8000
+
+# vim:ts=2:sw=2:et:syn=yaml:

@@ -1,0 +1,14 @@
+---
+
+version: "2.2"
+
+services:
+
+  cpuhog:
+    scale: 1
+    image: ${IMAGE_REPOSITORY}cpuhog:latest
+    build:
+      context: ..
+      dockerfile: docker/cpuhog.Dockerfile
+
+# vim:ts=2:sw=2:et:syn=yaml:
