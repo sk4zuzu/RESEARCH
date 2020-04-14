@@ -23,23 +23,23 @@ confirm: yes
 yes:
 	@: $(eval AUTO_APPROVE := --auto-approve)
 
-.PHONY: apply-env1
+.PHONY: apply-aks1
 
-apply-env1:
-	cd $(SELF)/LIVE/env1/ && rm -rf .terragrunt-cache/
-	cd $(SELF)/LIVE/env1/ && terragrunt apply $(AUTO_APPROVE)
-	cd $(SELF)/LIVE/env1/ && terragrunt output kubeconfig >kubeconfig.yml
+apply-aks1:
+	cd $(SELF)/LIVE/aks1/ && rm -rf .terragrunt-cache/
+	cd $(SELF)/LIVE/aks1/ && terragrunt apply $(AUTO_APPROVE)
+	cd $(SELF)/LIVE/aks1/ && terragrunt output kubeconfig >kubeconfig.yml
 
-.PHONY: destroy-env1
+.PHONY: destroy-aks1
 
-destroy-env1:
-	cd $(SELF)/LIVE/env1/ && rm -rf .terragrunt-cache/
-	cd $(SELF)/LIVE/env1/ && terragrunt destroy $(AUTO_APPROVE)
-	cd $(SELF)/LIVE/env1/ && rm -f kubeconfig.yml
+destroy-aks1:
+	cd $(SELF)/LIVE/aks1/ && rm -rf .terragrunt-cache/
+	cd $(SELF)/LIVE/aks1/ && terragrunt destroy $(AUTO_APPROVE)
+	cd $(SELF)/LIVE/aks1/ && rm -f kubeconfig.yml
 
-.PHONY: kubeconfig-env1
+.PHONY: kubeconfig-aks1
 
-kubeconfig-env1:
-	@echo export KUBECONFIG=$(SELF)/LIVE/env1/kubeconfig.yml
+kubeconfig-aks1:
+	@echo export KUBECONFIG=$(SELF)/LIVE/aks1/kubeconfig.yml
 
 # vim:ts=4:sw=4:noet:syn=make:
