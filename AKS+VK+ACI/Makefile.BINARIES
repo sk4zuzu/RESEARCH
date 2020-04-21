@@ -27,10 +27,10 @@ $(_GOPATH_)/bin/terraform-provider-random \
 $(_GOPATH_)/bin/terragrunt
 
 define HELM_RELEASE_INSTALL
-.PHONY: $(GOPATH)/bin/$(1)
-$(GOPATH)/bin/$(1): $(GOPATH)/bin/$(1)-$(2)
+.PHONY: $(_GOPATH_)/bin/$(1)
+$(_GOPATH_)/bin/$(1): $(_GOPATH_)/bin/$(1)-$(2)
 	rm -f $$@ && ln -s $$< $$@
-$(GOPATH)/bin/$(1)-$(2):
+$(_GOPATH_)/bin/$(1)-$(2):
 	curl -fSL https://get.helm.sh/$(1)-v$(2)-$(_FLAVOR_)-amd64.tar.gz \
 	| tar -xz -f- --strip-components=1 -C /tmp/ $(_FLAVOR_)-amd64/$(1) \
 	&& mv -f /tmp/$(1) $$@ \
