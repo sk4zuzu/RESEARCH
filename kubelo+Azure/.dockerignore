@@ -1,0 +1,10 @@
+*.swp
+*.swo
+*.zip
+/LIVE/**
+/kubelo/.tmp/
+/kubelo/.ssh/
+/kubelo/extras/.ssh
+/Makefile.ENV
+/kubelo/kubelo.ini
+/helm/values.yaml

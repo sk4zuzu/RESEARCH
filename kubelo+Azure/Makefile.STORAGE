@@ -1,0 +1,115 @@
+# Please take a look at https://docs.microsoft.com/bs-latn-ba/azure/terraform/terraform-backend for more info.
+# Please notice all "az ... create" commands (used here) seem to be idempotent.
+
+SELF := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+LIVE := $(SELF)/LIVE
+
+include $(SELF)/Makefile.ENV
+
+define GET_ACCOUNT_KEY
+az storage account keys list \
+	--resource-group $(RESOURCE_GROUP_NAME) \
+	--account-name $(STORAGE_ACCOUNT_NAME) \
+	--query '[0].value' \
+	--output tsv
+endef
+
+define TERRAGRUNT_HCL
+# managed by Makefile.STORAGE
+remote_state {
+  backend = "azurerm"
+  config = {
+    resource_group_name  = "$(RESOURCE_GROUP_NAME)"
+    storage_account_name = "$(STORAGE_ACCOUNT_NAME)"
+    container_name       = "$(CONTAINER_NAME_TFSTATE)"
+    key                  = "$${path_relative_to_include()}/terraform.tfstate"
+  }
+}
+endef
+
+define CREATE_SERVICE_PRINCIPAL
+az ad sp create-for-rbac \
+	--name $(SERVICE_PRINCIPAL) \
+	--query '[appId, password, tenant]' \
+	--output tsv
+endef
+
+export
+
+.PHONY: all setup
+
+all: setup
+
+setup: containers service_principal terragrunt_hcl
+
+.PHONY: terragrunt_hcl
+
+terragrunt_hcl:
+	install -d $(LIVE)/
+	tee $(LIVE)/terragrunt.hcl <<< "$$TERRAGRUNT_HCL"
+
+.PHONY: resource_group storage_account account_key
+
+resource_group:
+	az group create \
+	   --name $(RESOURCE_GROUP_NAME) \
+	   --location $(LOCATION)
+
+storage_account: resource_group
+	az storage account create \
+	   --name $(STORAGE_ACCOUNT_NAME) \
+	   --resource-group $(RESOURCE_GROUP_NAME) \
+	   --sku Standard_LRS \
+	   --encryption-services blob
+
+account_key: storage_account
+	@: $(eval ACCOUNT_KEY := $(shell $(GET_ACCOUNT_KEY)))
+
+.PHONY: containers container_tfstate container_kubelo
+
+containers: container_tfstate container_kubelo
+
+container_tfstate: account_key
+	az storage container create \
+	   --name $(CONTAINER_NAME_TFSTATE) \
+	   --account-name $(STORAGE_ACCOUNT_NAME) \
+	   --account-key $(ACCOUNT_KEY)
+
+container_kubelo: account_key
+	az storage container create \
+	   --name $(CONTAINER_NAME_KUBELO) \
+	   --account-name $(STORAGE_ACCOUNT_NAME) \
+	   --account-key $(ACCOUNT_KEY)
+
+.PHONY: service_principal
+
+service_principal:
+	@: $(eval OUTPUT := $(shell $(CREATE_SERVICE_PRINCIPAL)))
+	@: $(eval CLIENT_ID := $(word 1,$(OUTPUT)))
+	@: $(eval CLIENT_SECRET := $(word 2,$(OUTPUT)))
+	@: $(eval TENANT_ID := $(word 3,$(OUTPUT)))
+	@:
+	@echo CLIENT_ID=$(CLIENT_ID)
+	@echo CLIENT_SECRET=$(CLIENT_SECRET)
+	@echo TENANT_ID=$(TENANT_ID)
+	@:
+	@sed -i $(SELF)/Makefile.ENV -e 's|^CLIENT_ID=.*|CLIENT_ID=$(CLIENT_ID)|'
+	@sed -i $(SELF)/Makefile.ENV -e 's|^CLIENT_SECRET=.*|CLIENT_SECRET=$(CLIENT_SECRET)|'
+	@sed -i $(SELF)/Makefile.ENV -e 's|^TENANT_ID=.*|TENANT_ID=$(TENANT_ID)|'
+	@:
+	@echo
+	@echo NOTICE: the $(SELF)/Makefile.ENV file has been updated with the latest client secret!
+	@echo
+	@echo LOGIN WITH: az login --service-principal --username $(CLIENT_ID) --password $(CLIENT_SECRET) --tenant $(TENANT_ID)
+	@echo
+
+.PHONY: download_config
+
+download_config: account_key
+	az storage blob download-batch \
+	   --account-name $(STORAGE_ACCOUNT_NAME) \
+	   --account-key $(ACCOUNT_KEY) \
+	   --source $(CONTAINER_NAME_KUBELO) \
+	   --destination $(SELF)/LIVE/
+
+# vim:ts=4:sw=4:noet:

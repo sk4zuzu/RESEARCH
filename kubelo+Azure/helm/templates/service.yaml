@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "kubelo-autoscale.fullname" . }}
+  labels:
+    app: &app {{ template "kubelo-autoscale.name" . }}
+    release: &release {{ .Release.Name }}
+    chart: {{ template "kubelo-autoscale.chart" . }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8686
+      targetPort: 8686
+      protocol: TCP
+      name: http
+  selector:
+    app: *app
+    release: *release
+# vim:ts=2:sw=2:et:syn=yaml:

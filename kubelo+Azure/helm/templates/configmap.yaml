@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "kubelo-autoscale.fullname" . }}
+  labels:
+    app: {{ template "kubelo-autoscale.name" . }}
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+data:
+{{- if .Values.environment }}
+{{ toYaml .Values.environment | indent 2 }}
+{{- end }}
+# vim:ts=2:sw=2:et:syn=yaml:

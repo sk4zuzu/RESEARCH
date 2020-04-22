@@ -1,0 +1,37 @@
+
+replicas: 1
+
+image:
+  repository: sk4zuzu/kubelo-azure
+  tag: latest
+  pullPolicy: Always
+
+environment:
+  MAKEFILE_ENV: |
+    SUBSCRIPTION_ID=subscription-id
+
+    LOCATION=location
+
+    SERVICE_PRINCIPAL=service-principal
+    CLIENT_ID=client-id
+    CLIENT_SECRET=client-secret
+    TENANT_ID=tenant-id
+
+    RESOURCE_GROUP_NAME=resource-group-name
+    STORAGE_ACCOUNT_NAME=storageaccountname
+    CONTAINER_NAME_TFSTATE=container-name-tfstate
+    CONTAINER_NAME_KUBELO=container-name-kubelo
+
+    IMAGE_REGISTRY=image-registry
+  ID_RSA: |
+    -----BEGIN OPENSSH PRIVATE KEY-----
+    ...
+    -----END OPENSSH PRIVATE KEY-----
+  ID_RSA_PUB: |
+    ssh-rsa ...
+
+service:
+  type: ClusterIP
+  port: 8000
+
+# vim:ts=2:sw=2:et:syn=yaml:

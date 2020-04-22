@@ -1,0 +1,38 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "kubelo-autoscale.fullname" . }}
+  labels:
+    app: &app {{ template "kubelo-autoscale.name" . }}
+    release: &release {{ .Release.Name }}
+    chart: {{ template "kubelo-autoscale.chart" . }}
+    heritage: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicas }}
+  selector:
+    matchLabels:
+      app: *app
+      release: *release
+  template:
+    metadata:
+      labels:
+        app: *app
+        release: *release
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8686
+          resources:
+            limits:
+              cpu: 0.5
+            requests:
+              cpu: 0.2
+          envFrom:
+            - configMapRef:
+                name: {{ template "kubelo-autoscale.fullname" . }}
+      restartPolicy: Always
+# vim:ts=2:sw=2:et:syn=yaml:
