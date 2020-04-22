@@ -1,0 +1,3 @@
+[submodule "kubelo+Azure/kubelo"]
+	path = kubelo+Azure/kubelo
+	url = https://github.com/sk4zuzu/kubelo.git
