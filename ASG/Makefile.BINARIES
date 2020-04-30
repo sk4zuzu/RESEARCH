@@ -1,0 +1,85 @@
+
+_FLAVOR_ ?= linux
+
+TERRAFORM_VERSION                     ?= 0.12.24
+TERRAFORM_PROVIDER_AWS_VERSION        ?= 2.59.0
+TERRAFORM_PROVIDER_EXTERNAL_VERSION   ?= 1.2.0
+TERRAFORM_PROVIDER_LOCAL_VERSION      ?= 1.4.0
+TERRAFORM_PROVIDER_NULL_VERSION       ?= 2.1.2
+TERRAFORM_PROVIDER_RANDOM_VERSION     ?= 2.2.1
+TERRAGRUNT_VERSION                    ?= 0.23.4
+
+_GOPATH_ ?= $(HOME)/go
+
+TARGETS = \
+$(_GOPATH_)/bin/terraform \
+$(_GOPATH_)/bin/terraform-provider-aws \
+$(_GOPATH_)/bin/terraform-provider-external \
+$(_GOPATH_)/bin/terraform-provider-local \
+$(_GOPATH_)/bin/terraform-provider-null \
+$(_GOPATH_)/bin/terraform-provider-random \
+$(_GOPATH_)/bin/terragrunt
+
+define HASHICORP_RELEASE_INSTALL
+.PHONY: $(_GOPATH_)/bin/$(1)
+$(_GOPATH_)/bin/$(1): $(_GOPATH_)/bin/$(1)-$(2)
+	rm -f $$@ && ln -s $$< $$@
+$(_GOPATH_)/bin/$(1)-$(2):
+	mkdir -p /tmp/$(1)-$(2)/ \
+	&& curl -fSL https://releases.hashicorp.com/$(1)/$(2)/$(1)_$(2)_$(_FLAVOR_)_amd64.zip \
+	        -o /tmp/$(1)-$(2)/download.zip \
+	&& unzip -o -d /tmp/$(1)-$(2)/ /tmp/$(1)-$(2)/download.zip \
+	&& mv /tmp/$(1)-$(2)/$(1)* $$@ \
+	&& rm -rf /tmp/$(1)-$(2)/ \
+	&& chmod +x $$@
+endef
+
+define TERRAGRUNT_RELEASE_INSTALL
+.PHONY: $(_GOPATH_)/bin/$(1)
+$(_GOPATH_)/bin/$(1): $(_GOPATH_)/bin/$(1)-$(2)
+	rm -f $$@ && ln -s $$< $$@
+$(_GOPATH_)/bin/$(1)-$(2):
+	curl -fSL https://github.com/gruntwork-io/$(1)/releases/download/v$(2)/$(1)_$(_FLAVOR_)_amd64 \
+	     -o $$@ \
+	&& chmod +x $$@
+endef
+
+PIP_REQUIREMENTS = \
+ansible \
+awscli \
+terraform_external_data
+
+export
+
+.PHONY: all pip clean
+
+all: $(TARGETS) pip
+
+pip:
+	unset SOURCE_DATE_EPOCH && pip3 --no-cache-dir install $(PIP_REQUIREMENTS)
+
+clean:
+	rm -f $(TARGETS)
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform,$(TERRAFORM_VERSION)))
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform-provider-aws,$(TERRAFORM_PROVIDER_AWS_VERSION)))
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform-provider-external,$(TERRAFORM_PROVIDER_EXTERNAL_VERSION)))
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform-provider-local,$(TERRAFORM_PROVIDER_LOCAL_VERSION)))
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform-provider-null,$(TERRAFORM_PROVIDER_NULL_VERSION)))
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform-provider-random,$(TERRAFORM_PROVIDER_RANDOM_VERSION)))
+
+$(eval \
+	$(call TERRAGRUNT_RELEASE_INSTALL,terragrunt,$(TERRAGRUNT_VERSION)))
+
+# vim:ts=4:sw=4:noet:syn=make:
