@@ -1,0 +1,49 @@
+
+SELF := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+LIVE := $(SELF)/LIVE
+
+include $(SELF)/Makefile.ENV
+
+AWS_DEFAULT_REGION    ?= $(REGION)
+AWS_ACCESS_KEY_ID     ?= $(ACCESS_KEY)
+AWS_SECRET_ACCESS_KEY ?= $(SECRET_KEY)
+
+define TERRAGRUNT_HCL
+# managed by Makefile.STORAGE
+remote_state {
+  backend = "s3"
+  config = {
+    region  = "$(REGION)"
+    bucket  = "$(BUCKET_NAME)"
+    key     = "$${path_relative_to_include()}/terraform.tfstate"
+    encrypt = true
+  }
+}
+endef
+
+export
+
+.PHONY: all setup
+
+all: setup
+
+setup: bucket terragrunt_hcl
+
+.PHONY: terragrunt_hcl
+
+terragrunt_hcl:
+	install -d $(LIVE)/
+	tee $(LIVE)/terragrunt.hcl <<< "$$TERRAGRUNT_HCL"
+
+.PHONY: bucket
+
+bucket:
+	if ! aws s3api head-bucket --bucket $(BUCKET_NAME); then \
+		aws s3api create-bucket \
+		    --region $(REGION) \
+		    --create-bucket-configuration LocationConstraint=$(REGION) \
+		    --bucket $(BUCKET_NAME) \
+		    --acl private; \
+	fi
+
+# vim:ts=4:sw=4:noet:syn=make:
