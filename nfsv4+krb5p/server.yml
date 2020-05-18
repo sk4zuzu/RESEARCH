@@ -1,0 +1,15 @@
+---
+
+- hosts: all
+  gather_facts: true
+  tasks: []
+
+- hosts: krb5_server[0]
+  roles:
+    - role: krb5-server
+
+- hosts: nfs4_server[0]
+  roles:
+    - role: nfs4-server
+
+# vim:ts=2:sw=2:et:syn=yaml:

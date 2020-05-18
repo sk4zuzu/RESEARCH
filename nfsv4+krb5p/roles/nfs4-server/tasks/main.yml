@@ -1,0 +1,63 @@
+---
+
+- apt:
+    update_cache: true
+    pkg:
+      - nfs-common
+      - nfs-kernel-server
+      - rpcbind
+    state: present
+  register: apt_result
+  until: apt_result is success
+  retries: 69
+  delay: 5
+
+- copy:
+    dest: /etc/default/nfs-common
+    content: |
+      NEED_STATD="no"
+      NEED_IDMAPD="yes"
+      NEED_GSSD="yes"
+
+- copy:
+    dest: /etc/default/nfs-kernel-server
+    content: |
+      NEED_SVCGSSD="yes"
+
+      RPCNFSDCOUNT=8
+      RPCNFSDPRIORITY=0
+
+      RPCNFSDOPTS="-N 2 -N 3"
+      RPCMOUNTDOPTS="--manage-gids -N 2 -N 3"
+      RPCSVCGSSDOPTS=""
+
+- file:
+    path: /shared
+    mode: ugo=rwx
+    state: directory
+
+- copy:
+    dest: /etc/exports
+    content: |
+      {% for entry in entries %}
+        {{- entry }}
+      {% endfor %}
+  vars:
+    entries: >-
+      {{ groups.nfs4_client
+      | map('extract', hostvars, ['ansible_default_ipv4', 'address'])
+      | map('regex_replace', '^(.*)$', '/shared \1(rw,sync,no_subtree_check,root_squash,sec=krb5p)')
+      | list }}
+
+- systemd:
+    name: rpcbind
+    state: started
+
+- systemd:
+    name: nfs-kernel-server
+    state: started
+
+- shell: |
+    exportfs -avr
+
+# vim:ts=2:sw=2:et:syn=yaml:

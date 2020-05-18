@@ -1,0 +1,39 @@
+---
+
+- apt:
+    update_cache: true
+    pkg:
+      - nfs-common
+      - rpcbind
+    state: present
+  register: apt_result
+  until: apt_result is success
+  retries: 69
+  delay: 5
+
+- copy:
+    dest: /etc/default/nfs-common
+    content: |
+      NEED_GSSD="yes"
+
+- file:
+    path: /shared
+    mode: ugo=rwx
+    state: directory
+
+- systemd:
+    name: rpcbind
+    state: started
+
+- systemd:
+    name: rpc-gssd
+    state: started
+
+- mount:
+    fstype: nfs4
+    opts: sec=krb5p
+    src: "{{ hostvars[groups.nfs4_server.0].ansible_default_ipv4.address }}:/shared"
+    path: /shared
+    state: mounted
+
+# vim:ts=2:sw=2:et:syn=yaml:

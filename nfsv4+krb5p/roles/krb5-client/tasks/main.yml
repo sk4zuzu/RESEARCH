@@ -1,0 +1,74 @@
+---
+
+- apt:
+    update_cache: true
+    pkg:
+      - heimdal-clients
+    state: present
+  register: apt_result
+  until: apt_result is success
+  retries: 69
+  delay: 5
+
+- copy:
+    dest: /etc/krb5.conf
+    content: |
+      [libdefaults]
+        default_realm = {{ krb5_domain_upper }}
+        encrypt = true
+      [realms]
+        {{ krb5_domain_upper }} = {
+          kdc = {{ krb5_server_fqdn }}
+          admin_server = {{ krb5_server_fqdn }}
+          kpasswd_server = {{ krb5_server_fqdn }}
+        }
+      [domain_realm]
+        .{{ krb5_domain_lower }} = {{ krb5_domain_upper }}
+  vars:
+    krb5_server_fqdn: >-
+      {{ hostvars[groups.krb5_server.0].ansible_fqdn }}
+    krb5_domain_lower: >-
+      {{ hostvars[groups.krb5_server.0].ansible_domain | lower }}
+    krb5_domain_upper: >-
+      {{ hostvars[groups.krb5_server.0].ansible_domain | upper }}
+
+- delegate_to: "{{ groups.krb5_server.0 }}"
+  block:
+    - stat:
+        path: /etc/{{ ansible_fqdn }}.keytab
+      register: stat_client_keytab
+
+    - when: not stat_client_keytab.stat.exists
+      block:
+        - shell: |
+            kadmin --local \
+              add --max-ticket-life='1 day' \
+                  --max-renewable-life='1 week' \
+                  --expiration-time='never' \
+                  --pw-expiration='never' \
+                  --attributes='' \
+                  --policy='default'  \
+                  --random-key \
+              nfs/{{ ansible_fqdn }}
+
+        - shell: |
+            kadmin --local \
+              ext_keytab \
+              nfs/{{ ansible_fqdn }}
+
+        - shell: |
+            kadmin --local \
+              ext_keytab --keytab='/etc/{{ ansible_fqdn }}.keytab' \
+              nfs/{{ ansible_fqdn }}
+
+        - slurp:
+            src: /etc/{{ ansible_fqdn }}.keytab
+          register: slurp_client_keytab
+
+- when: slurp_client_keytab.content is defined
+  copy:
+    dest: /etc/krb5.keytab
+    content: >-
+      {{ slurp_client_keytab.content | b64decode }}
+
+# vim:ts=2:sw=2:et:syn=yaml:

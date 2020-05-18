@@ -1,0 +1,107 @@
+---
+
+- apt:
+    update_cache: true
+    pkg:
+      - heimdal-clients
+      - heimdal-kdc
+    state: present
+  register: apt_result
+  until: apt_result is success
+  retries: 69
+  delay: 5
+
+- vars:
+    krb5_server_fqdn: >-
+      {{ ansible_fqdn }}
+    krb5_domain_lower: >-
+      {{ ansible_domain | lower }}
+    krb5_domain_upper: >-
+      {{ ansible_domain | upper }}
+    krb5_root_password: asd123
+
+  block:
+    - copy:
+        dest: /etc/krb5.conf
+        content: |
+          [libdefaults]
+            default_realm = {{ krb5_domain_upper }}
+            encrypt = true
+          [realms]
+            {{ krb5_domain_upper }} = {
+              kdc = {{ krb5_server_fqdn }}
+              admin_server = {{ krb5_server_fqdn }}
+              kpasswd_server = {{ krb5_server_fqdn }}
+            }
+          [domain_realm]
+            .{{ krb5_domain_lower }} = {{ krb5_domain_upper }}
+          [logging]
+            kdc = FILE:/var/log/heimdal-kdc.log
+            admin_server = FILE:/var/log/heimdal-kadmin.log
+            default = FILE:/var/log/heimdal-krb.log
+
+    - copy:
+        dest: /etc/heimdal-kdc/kadmind.acl
+        content: |
+          root/admin@{{ krb5_domain_upper }} all
+
+    - stat:
+        path: /var/lib/heimdal-kdc/.done.DONOTDELETE
+      register: stat_var_lib_heimdal_kdc_done
+
+    - when: not stat_var_lib_heimdal_kdc_done.stat.exists
+      block:
+        - shell: |
+            rm -rf /var/lib/heimdal-kdc/*
+
+        - shell: |
+            kstash --random-key \
+                   --key-file='/var/lib/heimdal-kdc/heimdal.mkey'
+
+        - shell: |
+            kadmin --local \
+              init --realm-max-ticket-life='unlimited' \
+                   --realm-max-renewable-life='unlimited' \
+              {{ krb5_domain_upper }}
+
+        - shell: |
+            kadmin --local \
+              add --max-ticket-life='1 day' \
+                  --max-renewable-life='1 week' \
+                  --expiration-time='never' \
+                  --pw-expiration='never' \
+                  --attributes='' \
+                  --policy='default'  \
+                  --password={{ krb5_root_password }} \
+              root/admin
+
+        - shell: |
+            kadmin --local \
+              add --max-ticket-life='1 day' \
+                  --max-renewable-life='1 week' \
+                  --expiration-time='never' \
+                  --pw-expiration='never' \
+                  --attributes='' \
+                  --policy='default'  \
+                  --random-key \
+              nfs/{{ ansible_fqdn }}
+
+        - shell: |
+            kadmin --local \
+              ext_keytab \
+              nfs/{{ ansible_fqdn }}
+
+        - file:
+            dest: /var/lib/heimdal-kdc/kadmind.acl
+            src: /etc/heimdal-kdc/kadmind.acl
+            state: link
+
+        - systemd:
+            name: heimdal-kdc
+            state: restarted
+
+        - file:
+            path: /var/lib/heimdal-kdc/.done.DONOTDELETE
+            state: touch
+
+# vim:ts=2:sw=2:et:syn=yaml:
