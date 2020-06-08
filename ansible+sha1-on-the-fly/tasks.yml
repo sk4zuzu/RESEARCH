@@ -1,0 +1,70 @@
+---
+- set_fact:
+    destination_host: "{{ groups.kubernetes_master.0 }}"
+    destination_dir: "/destination_dir"
+
+- name: Upload artifacts to mounted storage
+  vars:
+    private_key_path: "~/.ssh/id_rsa_{{ inventory_hostname_short }}"
+
+  always:
+    - name: Delete generated files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ private_key_path }}"
+        - "{{ private_key_path }}.pub"
+
+    - delegate_to: "{{ destination_host }}"
+      block:
+        - name: Remove public openssh key from admin's authorized_keys
+          authorized_key:
+            user: ubuntu
+            state: absent
+            key: >-
+              {{ openssh_keypair.public_key }}
+
+  block:
+    - name: Generate openssh keypair
+      openssh_keypair:
+        path: "{{ private_key_path }}"
+        size: 2048
+      register: openssh_keypair
+
+    - delegate_to: "{{ destination_host }}"
+      block:
+        - name: Add public openssh key to admin's authorized_keys
+          authorized_key:
+            user: ubuntu
+            state: present
+            key: >-
+              {{ openssh_keypair.public_key }}
+
+        - name: Ensure destination directory for artifacts exists
+          file:
+            path: "{{ destination_dir }}"
+            state: directory
+
+    - copy_via_ssh:
+        mode: push
+        ssh_host: "{{ destination_host }}"
+        ssh_key: "{{ private_key_path }}"
+        path: "{{ destination_dir }}/urandom.dd"
+        script: |
+          exec dd if=/dev/urandom bs={{ 1024**2 }} count=8 oflag=dsync status=none
+      register: copy_via_ssh_push
+
+    - copy_via_ssh:
+        mode: pull
+        ssh_host: "{{ destination_host }}"
+        ssh_key: "{{ private_key_path }}"
+        path: "{{ destination_dir }}/urandom.dd"
+        script: |
+          exec dd of=/tmp/urandom.dd oflag=dsync status=none
+      register: copy_via_ssh_pull
+
+    - assert:
+        that: copy_via_ssh_push.checksum == copy_via_ssh_pull.checksum
+
+# vim:ts=2:sw=2:et:syn=yaml:
