@@ -4,7 +4,6 @@
     update_cache: true
     pkg:
       - nfs-common
-      - rpcbind
     state: present
   register: apt_result
   until: apt_result is success
@@ -22,12 +21,11 @@
     state: directory
 
 - systemd:
-    name: rpcbind
-    state: started
-
-- systemd:
     name: rpc-gssd
-    state: started
+    state: "{{ item }}"
+  loop:
+    - started
+    - restarted
 
 - mount:
     fstype: nfs4

@@ -32,6 +32,9 @@
               kdc = {{ krb5_server_fqdn }}
               admin_server = {{ krb5_server_fqdn }}
               kpasswd_server = {{ krb5_server_fqdn }}
+              auth_to_local = RULE:[2:$1/$2@$0](nfs/.*.asd.lh@ASD.LH)s/.*/root/
+              auth_to_local = RULE:[2:$1/$2@$0](ubuntu/.*.asd.lh@ASD.LH)s/.*/ubuntu/
+              auth_to_local = DEFAULT
             }
           [domain_realm]
             .{{ krb5_domain_lower }} = {{ krb5_domain_upper }}

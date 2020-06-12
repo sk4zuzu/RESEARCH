@@ -53,13 +53,26 @@
 
         - shell: |
             kadmin --local \
+              add --max-ticket-life='1 day' \
+                  --max-renewable-life='1 week' \
+                  --expiration-time='never' \
+                  --pw-expiration='never' \
+                  --attributes='' \
+                  --policy='default'  \
+                  --random-key \
+              ubuntu/{{ ansible_fqdn }}
+
+        - shell: |
+            kadmin --local \
               ext_keytab \
-              nfs/{{ ansible_fqdn }}
+              nfs/{{ ansible_fqdn }} \
+              ubuntu/{{ ansible_fqdn }}
 
         - shell: |
             kadmin --local \
               ext_keytab --keytab='/etc/{{ ansible_fqdn }}.keytab' \
-              nfs/{{ ansible_fqdn }}
+              nfs/{{ ansible_fqdn }} \
+              ubuntu/{{ ansible_fqdn }}
 
         - slurp:
             src: /etc/{{ ansible_fqdn }}.keytab
