@@ -1,0 +1,15 @@
+
+micro:
+  nginx:
+    image:
+      repository: nginx
+      tag: 1.19-alpine
+      pullPolicy: Always
+    replicaCount: 3
+
+service:
+  type: ClusterIP
+  targetPort: 80
+  port: 8080
+
+# vim:ts=2:sw=2:et:syn=yaml:

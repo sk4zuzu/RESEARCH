@@ -1,0 +1,32 @@
+{{- range $micro, $config := .Values.micro }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "hello.fullname" $ }}-{{ $micro }}
+  labels:
+    app: &app {{ template "hello.name" $ }}-{{ $micro }}
+    release: &release {{ $.Release.Name }}
+    chart: {{ template "hello.chart" $ }}
+    heritage: {{ $.Release.Service }}
+spec:
+  replicas: {{ $config.replicaCount }}
+  selector:
+    matchLabels:
+      app: *app
+      release: *release
+  template:
+    metadata:
+      labels:
+        app: *app
+        release: *release
+    spec:
+      containers:
+        - name: {{ $.Chart.Name }}-{{ $micro }}
+          image: {{ $config.image.repository }}:{{ $config.image.tag }}
+          imagePullPolicy: {{ $config.image.pullPolicy }}
+          ports:
+            - containerPort: 80
+      restartPolicy: Always
+{{- end }}
+# vim:ts=2:sw=2:et:syn=yaml:
