@@ -1,0 +1,15 @@
+---
+
+- name: start wg-quick
+  systemd:
+    name: "wg-quick@{{ WIREGUARD_IF }}"
+    enabled: true
+    state: started
+
+- name: restart wg-quick
+  systemd:
+    name: "wg-quick@{{ WIREGUARD_IF }}"
+    enabled: true
+    state: restarted
+
+# vim:ts=2:sw=2:et:syn=yaml:

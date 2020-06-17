@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+
+# {{ ansible_managed }}
+
+import os, sys, subprocess as sub
+import netaddr
+import textwrap, re
+
+cfg = {
+    "PREFIX": os.environ.get("PREFIX", '{{ PREFIX }}'),
+    "PEER_ID": os.environ.get("PEER_ID", sys.argv[1]),
+    "PEER_SUBNET": os.environ.get("PEER_SUBNET", '{{ PEER_SUBNET }}'),
+    "SERVER_HOST": os.environ.get("SERVER_HOST", '{{ SERVER_HOST }}'),
+    "SERVER_PORT": os.environ.get("SERVER_PORT", '{{ SERVER_PORT }}'),
+    "WIREGUARD_IF": os.environ.get("WIREGUARD_IF", '{{ WIREGUARD_IF }}'),
+}
+
+
+def ensure_peer_keys(cfg=cfg):
+    os.umask(0o0077)
+
+    if not os.path.exists(os.path.join(cfg["PREFIX"], "peers")):
+        os.makedirs(os.path.join(cfg["PREFIX"], "peers"))
+
+    if not os.path.exists(os.path.join(cfg["PREFIX"], "peers", cfg["PEER_ID"] + ".key")):
+        sub.check_call("wg genkey >{PREFIX}/peers/{PEER_ID}.key".format(**cfg), shell=True)
+
+    if not os.path.exists(os.path.join(cfg["PREFIX"], "peers", cfg["PEER_ID"] + ".pubkey")):
+        sub.check_call("wg pubkey >{PREFIX}/peers/{PEER_ID}.pubkey <{PREFIX}/peers/{PEER_ID}.key".format(**cfg), shell=True)
+
+    with open(os.path.join(cfg["PREFIX"], "peers", cfg["PEER_ID"] + ".key")) as stream:
+        cfg["PEER_KEY"] = stream.read().strip()
+
+    with open(os.path.join(cfg["PREFIX"], "peers", cfg["PEER_ID"] + ".pubkey")) as stream:
+        cfg["PEER_PUBKEY"] = stream.read().strip()
+
+
+def ensure_peer_ipv4(cfg=cfg):
+    peer_subnet = netaddr.IPNetwork(cfg["PEER_SUBNET"])
+
+    current_ipv4s = {
+        pubkey: netaddr.IPNetwork(ipv4)[0]
+        for line in sub.check_output("wg show {WIREGUARD_IF} allowed-ips".format(**cfg), shell=True).splitlines()
+        for pubkey, ipv4 in [tuple(re.sub("\s+", " ", line.decode("utf-8").strip()).split())]
+    }
+
+    # Check if peer already exists
+    if cfg["PEER_PUBKEY"] in current_ipv4s:
+        cfg["PEER_IPV4"] = current_ipv4s[cfg["PEER_PUBKEY"]]
+        cfg["PEER_IPV4_PREFIXLEN"] = peer_subnet.prefixlen
+        return
+
+    allowed_ipv4s = netaddr.IPSet(peer_subnet)
+
+    # Remove 1st, 2nd and last ipv4 from the subnet
+    allowed_ipv4s ^= netaddr.IPSet([
+        peer_subnet[0],
+        peer_subnet[1],
+        peer_subnet[-1],
+    ])
+
+    # Remove current ipv4s
+    allowed_ipv4s ^= netaddr.IPSet(current_ipv4s.values())
+
+    if len(allowed_ipv4s) == 0:
+        raise ValueError("ipv4 pool exhausted")
+
+    cfg["PEER_IPV4"] = min(allowed_ipv4s)  # Lowest possible ipv4
+    cfg["PEER_IPV4_PREFIXLEN"] = peer_subnet.prefixlen
+
+
+def ensure_peer(cfg=cfg):
+    sub.check_call("wg set {WIREGUARD_IF} peer {PEER_PUBKEY} allowed-ips {PEER_IPV4}".format(**cfg), shell=True)
+
+
+def save_config(cfg=cfg):
+    sub.check_call("wg-quick save {WIREGUARD_IF}".format(**cfg), shell=True)
+
+
+def render_peer_config(cfg=cfg):
+    with open(os.path.join(cfg["PREFIX"], cfg["WIREGUARD_IF"] + ".pubkey")) as stream:
+        cfg["SERVER_PUBKEY"] = stream.read().strip()
+
+    rendered = textwrap.dedent("""
+    [Interface]
+    PrivateKey = {PEER_KEY}
+    Address    = {PEER_IPV4}/{PEER_IPV4_PREFIXLEN}
+
+    [Peer]
+    PublicKey  = {SERVER_PUBKEY}
+    Endpoint   = {SERVER_HOST}:{SERVER_PORT}
+    AllowedIPs = {PEER_SUBNET}
+    """).format(**cfg)
+
+    os.umask(0o0077)
+
+    if not os.path.exists(os.path.join(cfg["PREFIX"], "peers")):
+        os.makedirs(os.path.join(cfg["PREFIX"], "peers"))
+
+    with open(os.path.join(cfg["PREFIX"], "peers", cfg["PEER_ID"] + ".conf"), "w+") as stream:
+        stream.write(rendered)
+
+    return rendered
+
+
+if __name__ == "__main__":
+    if os.getuid() != 0:
+        raise Error("os.getuid() != 0")
+
+    ensure_peer_keys()
+    ensure_peer_ipv4()
+    ensure_peer()
+
+    save_config()
+
+    print(render_peer_config())
+
+
+# vim:ts=4:sw=4:et:syn=python:

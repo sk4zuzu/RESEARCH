@@ -1,0 +1,36 @@
+---
+
+- set_fact:
+    PEER_ID: "{{ inventory_hostname_short }}"
+
+- set_fact:
+    peer_config_path: >-
+      {{ PREFIX }}/peers/{{ PEER_ID }}.conf
+    client_config_path: >-
+      {{ PREFIX }}/{{ WIREGUARD_IF }}.conf
+
+- delegate_to: "{{ groups.wireguard_server.0 }}"
+  block:
+    - name: register new peer
+      shell: |
+        python3 ./ensure-peer.py {{ PEER_ID }}
+      args:
+        chdir: "{{ PREFIX }}/"
+        creates: "{{ peer_config_path }}"
+
+    - name: slurp peer's config
+      slurp:
+        src: "{{ peer_config_path }}"
+      register: slurp_peer_config
+
+- name: deploy peer's config
+  copy:
+    dest: "{{ client_config_path }}"
+    content: >-
+      {{ slurp_peer_config.content | b64decode }}
+    mode: u=rw,go=
+  notify:
+    - start wg-quick
+    - restart wg-quick
+
+# vim:ts=2:sw=2:et:syn=yaml:

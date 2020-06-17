@@ -1,0 +1,50 @@
+---
+
+- name: bootstrap python intepreter
+  script: python.sh
+  args:
+    executable: /bin/bash
+    creates: /usr/bin/python3
+  register: result
+  until: result is success
+  retries: 20
+  delay: 12
+
+- name: install python3 libs
+  apt:
+    update_cache: true
+    pkg:
+      - python3-netaddr
+    state: present
+  register: result
+  until: result is success
+  retries: 20
+  delay: 12
+
+- name: add wireguard repository
+  apt_repository:
+    repo: ppa:wireguard/wireguard
+    state: present
+
+- name: install wireguard
+  apt:
+    update_cache: true
+    pkg:
+      - wireguard
+    state: present
+  register: result
+  until: result is success
+  retries: 20
+  delay: 12
+
+- when: result is changed
+  reboot:  # I cry a lot... :'C
+
+- name: ensure ip_forward
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_file: /etc/sysctl.d/98-ip-forward.conf
+    reload: true
+
+# vim:ts=2:sw=2:et:syn=yaml:

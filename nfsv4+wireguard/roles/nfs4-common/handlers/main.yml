@@ -1,0 +1,19 @@
+---
+
+- name: start nfs-kernel-server
+  systemd:
+    name: nfs-kernel-server
+    enabled: true
+    state: started
+
+- name: restart nfs-kernel-server
+  systemd:
+    name: nfs-kernel-server
+    enabled: true
+    state: restarted
+
+- name: export nfs shares
+  shell: |
+    exportfs -avr
+
+# vim:ts=2:sw=2:et:syn=yaml:

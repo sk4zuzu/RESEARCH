@@ -1,0 +1,8 @@
+# {{ ansible_managed }}
+
+[Interface]
+Address    = {{ PEER_SUBNET | ipaddr(1) }}
+ListenPort = {{ SERVER_PORT }}
+PrivateKey = {{ SERVER_KEY }}
+
+# vim:ts=4:sw=4:et:syn=dosini:

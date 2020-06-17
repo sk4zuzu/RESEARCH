@@ -1,0 +1,63 @@
+---
+
+- set_fact:
+    server_key_path: >-
+      {{ PREFIX }}/{{ WIREGUARD_IF }}.key
+    server_pubkey_path: >-
+      {{ PREFIX }}/{{ WIREGUARD_IF }}.pubkey
+    server_config_path: >-
+      {{ PREFIX }}/{{ WIREGUARD_IF }}.conf
+
+- name: generate private key
+  shell: |
+    umask u=rw,go= && wg genkey >{{ server_key_path }}
+  args:
+    creates: "{{ server_key_path }}"
+
+- name: generate public key
+  shell: |
+    umask u=rw,go= && wg pubkey >{{ server_pubkey_path }} <{{ server_key_path }}
+  args:
+    creates: "{{ server_pubkey_path }}"
+
+- name: slurp private key
+  slurp:
+    src: "{{ server_key_path }}"
+  register: slurp_SERVER_KEY
+
+- set_fact:
+    SERVER_KEY: >-
+      {{ slurp_SERVER_KEY.content | b64decode | trim }}
+
+- stat:
+    path: "{{ server_config_path }}"
+  register: result
+
+- name: render wireguard config
+  template:
+    src: wireguard.conf.j2
+    dest: "{{ server_config_path }}"
+  notify:
+    - start wg-quick
+    - restart wg-quick
+  when:
+    - not result.stat.exists
+
+- name: set SERVER_HOST to ansible_host (ipv4)
+  set_fact:
+    SERVER_HOST: >-
+      {{ hostvars[inventory_hostname].ansible_host }}
+
+- name: render python helper scripts
+  template:
+    src: ensure-peer.py.j2
+    dest: "{{ PREFIX }}/ensure-peer.py"
+
+- name: ensure ip_forward
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_file: /etc/sysctl.d/98-ip-forward.conf
+    reload: true
+
+# vim:ts=2:sw=2:et:syn=yaml:

@@ -1,0 +1,50 @@
+---
+
+- apt:
+    update_cache: true
+    pkg:
+      - nfs-kernel-server
+    state: present
+  register: result
+  until: result is success
+  retries: 20
+  delay: 12
+
+- copy:
+    dest: /etc/default/nfs-common
+    content: |
+      NEED_STATD="no"
+      NEED_IDMAPD="yes"
+      NEED_GSSD="no"
+  notify:
+    - start nfs-kernel-server
+    - restart nfs-kernel-server
+
+- copy:
+    dest: /etc/default/nfs-kernel-server
+    content: |
+      NEED_SVCGSSD="no"
+
+      RPCNFSDCOUNT=8
+      RPCNFSDPRIORITY=0
+
+      RPCNFSDOPTS="-N 2 -N 3"
+      RPCMOUNTDOPTS="--manage-gids -N 2 -N 3"
+      RPCSVCGSSDOPTS=""
+  notify:
+    - start nfs-kernel-server
+    - restart nfs-kernel-server
+
+- file:
+    path: /shared/
+    mode: ugo=rwx
+    state: directory
+
+- copy:
+    dest: /etc/exports
+    content: |
+      /shared {{ PEER_SUBNET }}(rw,sync,no_subtree_check,no_root_squash,sec=sys)
+  notify:
+    - export nfs shares
+
+# vim:ts=2:sw=2:et:syn=yaml:
