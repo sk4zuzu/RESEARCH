@@ -1,0 +1,29 @@
+---
+
+- shell: |
+    for (( RETRY = 0; RETRY < 18; RETRY++ )); do
+      echo "async_job: $RETRY" >> /tmp/sink
+      sleep 1
+    done
+  args:
+    executable: /bin/bash
+  async: 18
+  poll: 0
+  register: async_job
+
+- shell: |
+    for (( RETRY = 0; RETRY < 16; RETRY++ )); do
+      echo "sync_job: $RETRY" >> /tmp/sink
+      sleep 1
+    done
+  args:
+    executable: /bin/bash
+
+- async_status:
+    jid: "{{ async_job.ansible_job_id }}"
+  register: async_job_result
+  until: async_job_result.finished
+  retries: 36
+  delay: 1
+
+# vim:ts=2:sw=2:et:syn=yaml:
