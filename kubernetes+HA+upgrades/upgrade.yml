@@ -1,13 +1,15 @@
 ---
 
-- hosts: master
+- hosts: master:node
   gather_facts: true
+  pre_tasks: []
+
+- hosts: master
   roles:
     - role: upgrade/prereq
   tags: [prereq]
 
 - hosts: master[0]
-  gather_facts: true
   roles:
     - role: upgrade/all
   vars_files:

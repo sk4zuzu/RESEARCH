@@ -6,15 +6,25 @@
       - kubernetes_version is string
       - kubernetes_version | length > 0
 
+- assert:
+    that:
+      - destination_master is defined
+      - destination_master is string
+      - destination_master | length > 0
 
-- delegate_to: "{{ delegate_to }}"
+- delegate_to: "{{ destination_master }}"  # destination master where the upgrade is performed
   delegate_facts: true
+
+  vars:
+    _ansible_fqdn: "{{ hostvars[destination_master].ansible_fqdn }}"
+
   block:
     - include_tasks: "{{ ansible_os_family | lower }}/upgrade-kubeadm.yml"
 
-    - shell: |
+    - name: "drain master {{ _ansible_fqdn }}"
+      shell: |
         set -o errexit -o pipefail
-        kubectl drain {{ ansible_fqdn }} \
+        kubectl drain {{ _ansible_fqdn }} \
           --ignore-daemonsets \
           --delete-local-data \
         |& tee -a /tmp/kubectl.log
@@ -24,13 +34,15 @@
         KUBECONFIG: /etc/kubernetes/admin.conf
 
     - block:
-        - shell: |
+        - name: "upgrade master {{ _ansible_fqdn }}"
+          shell: |
             set -o errexit -o pipefail
             kubeadm upgrade node |& tee -a /tmp/kubeadm.log
           args:
             executable: /bin/bash
       rescue:
-        - shell: |
+        - name: "upgrade master {{ _ansible_fqdn }} (rescued)"
+          shell: |
             set -o errexit -o pipefail
             kubeadm upgrade node experimental-control-plane |& tee -a /tmp/kubeadm.log
           args:
@@ -38,9 +50,10 @@
 
     - include_tasks: "{{ ansible_os_family | lower }}/upgrade-binaries.yml"
 
-    - shell: |
+    - name: "uncordon master {{ _ansible_fqdn }}"
+      shell: |
         set -o errexit -o pipefail
-        kubectl uncordon {{ ansible_fqdn }} |& tee -a /tmp/kubectl.log
+        kubectl uncordon {{ _ansible_fqdn }} |& tee -a /tmp/kubectl.log
       args:
         executable: /bin/bash
       environment:

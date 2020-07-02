@@ -6,31 +6,45 @@
       - kubernetes_version is string
       - kubernetes_version | length > 0
 
-- delegate_to: "{{ delegate_to }}"
+- assert:
+    that:
+      - destination_node is defined
+      - destination_node is string
+      - destination_node | length > 0
+
+- delegate_to: "{{ destination_node }}"  # destination node where the upgrade is performed
   delegate_facts: true
+
+  vars:
+    _ansible_fqdn: "{{ hostvars[destination_node].ansible_fqdn }}"
+
   block:
     - include_tasks: "{{ ansible_os_family | lower }}/upgrade-kubeadm.yml"
 
     - delegate_to: "{{ groups.master.0 }}"  # cancel the outter delegate_to
-      shell: |
-        set -o errexit -o pipefail
-        kubectl drain {{ ansible_fqdn }} \
-          --ignore-daemonsets \
-          --delete-local-data \
-        |& tee -a /tmp/kubectl.log
-      args:
-        executable: /bin/bash
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
+      block:
+        - name: "drain node {{ _ansible_fqdn }}"
+          shell: |
+            set -o errexit -o pipefail
+            kubectl drain {{ _ansible_fqdn }} \
+              --ignore-daemonsets \
+              --delete-local-data \
+            |& tee -a /tmp/kubectl.log
+          args:
+            executable: /bin/bash
+          environment:
+            KUBECONFIG: /etc/kubernetes/admin.conf
 
     - block:
-        - shell: |
+        - name: "upgrade node {{ _ansible_fqdn }}"
+          shell: |
             set -o errexit -o pipefail
             kubeadm upgrade node |& tee -a /tmp/kubeadm.log
           args:
             executable: /bin/bash
       rescue:
-        - shell: |
+        - name: "upgrade node {{ _ansible_fqdn }} (rescued)"
+          shell: |
             set -o errexit -o pipefail
             kubeadm upgrade node config \
               --kubelet-version v{{ kubernetes_version }} \
@@ -41,12 +55,14 @@
     - include_tasks: "{{ ansible_os_family | lower }}/upgrade-binaries.yml"
 
     - delegate_to: "{{ groups.master.0 }}"  # cancel the outter delegate_to
-      shell: |
-        set -o errexit -o pipefail
-        kubectl uncordon {{ ansible_fqdn }} |& tee -a /tmp/kubectl.log
-      args:
-        executable: /bin/bash
-      environment:
-        KUBECONFIG: /etc/kubernetes/admin.conf
+      block:
+        - name: "uncordon node {{ _ansible_fqdn }}"
+          shell: |
+            set -o errexit -o pipefail
+            kubectl uncordon {{ _ansible_fqdn }} |& tee -a /tmp/kubectl.log
+          args:
+            executable: /bin/bash
+          environment:
+            KUBECONFIG: /etc/kubernetes/admin.conf
 
 # vim:ts=2:sw=2:et:syn=yaml:

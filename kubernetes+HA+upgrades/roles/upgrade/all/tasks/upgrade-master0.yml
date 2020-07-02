@@ -8,7 +8,8 @@
 
 - include_tasks: "{{ ansible_os_family | lower }}/upgrade-kubeadm.yml"
 
-- shell: |
+- name: "drain master {{ ansible_fqdn }}"
+  shell: |
     set -o errexit -o pipefail
     kubectl drain {{ ansible_fqdn }} \
       --ignore-daemonsets \
@@ -19,7 +20,8 @@
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
 
-- shell: |
+- name: "upgrade master {{ ansible_fqdn }}"
+  shell: |
     set -o errexit -o pipefail
     kubeadm upgrade apply --yes v{{ kubernetes_version }} |& tee -a /tmp/kubeadm.log
   args:
@@ -27,7 +29,8 @@
 
 - include_tasks: "{{ ansible_os_family | lower }}/upgrade-binaries.yml"
 
-- shell: |
+- name: "uncordon master {{ ansible_fqdn }}"
+  shell: |
     set -o errexit -o pipefail
     kubectl uncordon {{ ansible_fqdn }} |& tee -a /tmp/kubectl.log
   args:

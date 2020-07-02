@@ -9,17 +9,13 @@
 - include_tasks: upgrade-master0.yml
 
 - include_tasks: upgrade-masterN.yml
-  vars:
-    delegate_to: "{{ upgrade_once_item }}"
   loop_control:
-    loop_var: upgrade_once_item
-  loop: "{{ groups.master[1:] }}"
+    loop_var: destination_master
+  loop: "{{ groups.master[1:] }}"  # excluding first master
 
 - include_tasks: upgrade-nodeN.yml
-  vars:
-    delegate_to: "{{ upgrade_once_item }}"
   loop_control:
-    loop_var: upgrade_once_item
+    loop_var: destination_node
   loop: "{{ groups.node }}"
 
 # vim:ts=2:sw=2:et:syn=yaml:
