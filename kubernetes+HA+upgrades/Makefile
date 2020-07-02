@@ -24,4 +24,9 @@ upgrade:
 prereq:
 	ansible-playbook --tags prereq -vv deploy.yml upgrade.yml
 
+.PHONY: example
+
+example:
+	ansible-playbook -vv example.yml
+
 # vim:ts=4:sw=4:noet:syn=make:

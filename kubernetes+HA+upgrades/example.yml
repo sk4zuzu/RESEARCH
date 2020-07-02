@@ -1,0 +1,17 @@
+---
+
+- hosts: master[0]
+  tasks:
+    - copy:
+        dest: /tmp/
+        src: "{{ playbook_dir }}/../helm+nginx"
+
+    - shell: |
+        helm upgrade --install \
+          --set micro.nginx.replicaCount=5 \
+          example \
+          /tmp/helm+nginx/
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+
+# vim:ts=2:sw=2:et:syn=yaml:
