@@ -1,0 +1,29 @@
+---
+
+- assert:
+    that:
+      - kubernetes_pki_files is defined
+      - kubernetes_pki_files is sequence
+      - kubernetes_pki_files | length > 0
+
+- name: load all pki files
+  slurp:
+    src: "/etc/kubernetes/{{ item }}"
+  loop: >-
+    {{ kubernetes_pki_files }}
+  register: result
+  no_log: true
+
+- name: yield filename-to-content pki map
+  set_fact:
+    kubernetes_pki_file_map: >-
+      {{ dict(kubernetes_pki_files | zip(_kubernetes_pki_files_decoded)) }}
+  vars:
+    # decode all slurped pki files
+    _kubernetes_pki_files_decoded: >-
+      {{ result.results | map(attribute='content')
+                        | map('b64decode')
+                        | list }}
+  no_log: true
+
+# vim:ts=2:sw=2:et:syn=yaml:

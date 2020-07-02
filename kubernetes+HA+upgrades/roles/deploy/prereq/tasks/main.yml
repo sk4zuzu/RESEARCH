@@ -1,0 +1,44 @@
+---
+
+- include_tasks: "{{ ansible_os_family | lower }}/install-docker.yml"
+
+- name: configure docker
+  block:
+    - name: setup docker to use the "systemd" cgroup driver
+      copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {{ _content | to_nice_json }}
+      vars:
+        _content:
+          exec-opts:
+            - native.cgroupdriver=systemd
+          log-driver: json-file
+          log-opts:
+            max-size: 100m
+          storage-driver: overlay2
+      notify:
+        - restart docker
+
+- include_tasks: "{{ ansible_os_family | lower }}/install-haproxy.yml"
+
+- name: configure haproxy
+  vars:
+    _master_names: >-
+      {{ groups.master | map('extract', hostvars, ['inventory_hostname'])
+                       | list }}
+    _master_ipv4s: >-
+      {{ groups.master | map('extract', hostvars, ['ansible_default_ipv4', 'address'])
+                       | list }}
+    _backend_servers: >-
+      {{ _master_names | zip(_master_ipv4s)
+                       | list }}
+  block:
+    - name: render haproxy config
+      template:
+        dest: /etc/haproxy/haproxy.cfg
+        src: haproxy.cfg.j2
+      notify:
+        - restart haproxy
+
+# vim:ts=2:sw=2:et:syn=yaml:

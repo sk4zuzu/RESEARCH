@@ -1,0 +1,25 @@
+---
+
+- assert:
+    that:
+      - hostvars[groups.master.0].kubernetes_pki_file_map is defined
+      - hostvars[groups.master.0].kubernetes_pki_file_map is mapping
+      - hostvars[groups.master.0].kubernetes_pki_file_map | length > 0
+
+- name: ensure pki directories exist
+  file:
+    path: "/etc/kubernetes/{{ item }}"
+    state: directory
+  loop: >-
+    {{ kubernetes_pki_dirs }}
+
+- name: save pki files
+  copy:
+    dest: "/etc/kubernetes/{{ item.key }}"
+    content: |
+      {{ item.value }}
+  loop: >-
+    {{ hostvars[groups.master.0].kubernetes_pki_file_map | dict2items }}
+  no_log: true
+
+# vim:ts=2:sw=2:et:syn=yaml:

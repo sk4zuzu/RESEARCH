@@ -1,0 +1,10 @@
+---
+
+- include_tasks: upgrade-once.yml
+  vars:
+    kubernetes_version: "{{ main_item }}"
+  loop_control:
+    loop_var: main_item
+  loop: "{{ kubernetes_versions[1:] }}"
+
+# vim:ts=2:sw=2:et:syn=yaml:

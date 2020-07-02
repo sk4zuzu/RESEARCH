@@ -1,0 +1,30 @@
+---
+
+- assert:
+    that:
+      - kubernetes_versions is defined
+      - kubernetes_versions is sequence
+      - kubernetes_versions | length > 0
+
+- name: import kubernetes repository gpg key
+  apt_key:
+    url: "https://packages.cloud.google.com/apt/doc/apt-key.gpg"
+    state: present
+
+- name: add kubernetes repository
+  apt_repository:
+    repo: "deb [arch=amd64] https://apt.kubernetes.io kubernetes-xenial main"
+    state: present
+  register: result
+  until: result is success
+  retries: 20
+  delay: 12
+
+- name: download docker images
+  include_tasks: download-image.yml
+  vars:
+    kubernetes_version: "{{ item }}"
+  loop: >-
+    {{ kubernetes_versions }}
+
+# vim:ts=2:sw=2:et:syn=yaml:

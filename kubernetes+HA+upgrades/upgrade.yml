@@ -1,0 +1,17 @@
+---
+
+- hosts: master
+  gather_facts: true
+  roles:
+    - role: upgrade/prereq
+  tags: [prereq]
+
+- hosts: master[0]
+  gather_facts: true
+  roles:
+    - role: upgrade/all
+  vars_files:
+    - roles/upgrade/prereq/defaults/main.yml
+  tags: [upgrade]
+
+# vim:ts=2:sw=2:et:syn=yaml:

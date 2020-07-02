@@ -1,0 +1,5 @@
+---
+
+- include_tasks: "{{ ansible_os_family | lower }}/download-images.yml"
+
+# vim:ts=2:sw=2:et:syn=yaml:

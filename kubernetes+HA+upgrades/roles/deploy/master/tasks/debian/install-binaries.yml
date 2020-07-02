@@ -1,0 +1,34 @@
+---
+
+- name: install kubernetes binary packages
+  vars:
+    kubernetes_version_apt: "{{ KUBERNETES_VERSION }}-00"
+
+  block:
+    - name: import kubernetes repository gpg key
+      apt_key:
+        url: "https://packages.cloud.google.com/apt/doc/apt-key.gpg"
+        state: present
+
+    - name: add kubernetes repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://apt.kubernetes.io kubernetes-xenial main"
+        state: present
+      register: result
+      until: result is success
+      retries: 20
+      delay: 12
+
+    - name: install binaries
+      apt:
+        name:
+          - "kubelet={{ kubernetes_version_apt }}"
+          - "kubeadm={{ kubernetes_version_apt }}"
+          - "kubectl={{ kubernetes_version_apt }}"
+        state: present
+      register: result
+      until: result is success
+      retries: 20
+      delay: 12
+
+# vim:ts=2:sw=2:et:syn=yaml:

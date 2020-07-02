@@ -1,0 +1,17 @@
+---
+
+kubernetes_pki_dirs:
+  - pki/
+  - pki/etcd/
+
+kubernetes_pki_files:
+  - pki/ca.crt
+  - pki/ca.key
+  - pki/sa.key
+  - pki/sa.pub
+  - pki/etcd/ca.crt
+  - pki/etcd/ca.key
+  - pki/front-proxy-ca.crt
+  - pki/front-proxy-ca.key
+
+# vim:ts=2:sw=2:et:syn=yaml:

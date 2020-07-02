@@ -1,0 +1,34 @@
+---
+
+- name: create node token
+  shell: |
+    set -o errexit -o pipefail
+    kubeadm token create \
+      --ttl 0 \
+      --groups "system:bootstrappers:kubeadm:default-node-token" \
+    |& tee -a /tmp/kubeadm.log
+  args:
+    executable: /bin/bash
+  register: result
+  changed_when: false
+
+- set_fact:
+    kubeadm_node_token: "{{ result.stdout_lines.0 | trim }}"
+
+- name: re-construct join hash
+  shell: |
+    set -o errexit -o pipefail
+    openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt \
+    | openssl rsa -pubin -outform der \
+    | openssl dgst -sha256 -hex \
+    | grep stdin \
+    | awk '{print$2}'
+  args:
+    executable: /bin/bash
+  register: result
+  changed_when: false
+
+- set_fact:
+    kubeadm_join_hash: "sha256:{{ result.stdout_lines.0 | trim }}"
+
+# vim:ts=2:sw=2:et:syn=yaml:

@@ -1,0 +1,35 @@
+---
+
+- assert:
+    that:
+      - hostvars[groups.master.0].kubeadm_node_token is defined
+      - hostvars[groups.master.0].kubeadm_node_token is string
+      - hostvars[groups.master.0].kubeadm_node_token | length > 0
+
+- assert:
+    that:
+      - hostvars[groups.master.0].kubeadm_join_hash is defined
+      - hostvars[groups.master.0].kubeadm_join_hash is string
+      - hostvars[groups.master.0].kubeadm_join_hash | length > 0
+
+- name: render node join config
+  template:
+    dest: /etc/kubernetes/kubeadm-join.yml
+    src: "{{ KUBERNETES_VERSION }}/kubeadm-join.yml.j2"
+  vars:
+    _token: >-
+      {{ hostvars[groups.master.0].kubeadm_node_token }}
+    _hash: >-
+      {{ hostvars[groups.master.0].kubeadm_join_hash }}
+
+- name: join another node
+  shell: |
+    set -o errexit -o pipefail
+    kubeadm join \
+      --config /etc/kubernetes/kubeadm-join.yml \
+    |& tee -a /tmp/kubeadm.log
+  args:
+    executable: /bin/bash
+    creates: /etc/kubernetes/kubelet.conf
+
+# vim:ts=2:sw=2:et:syn=yaml:

@@ -1,0 +1,25 @@
+---
+
+- assert:
+    that:
+      - kubernetes_version is defined
+      - kubernetes_version is string
+      - kubernetes_version | length > 0
+
+- include_tasks: upgrade-master0.yml
+
+- include_tasks: upgrade-masterN.yml
+  vars:
+    delegate_to: "{{ upgrade_once_item }}"
+  loop_control:
+    loop_var: upgrade_once_item
+  loop: "{{ groups.master[1:] }}"
+
+- include_tasks: upgrade-nodeN.yml
+  vars:
+    delegate_to: "{{ upgrade_once_item }}"
+  loop_control:
+    loop_var: upgrade_once_item
+  loop: "{{ groups.node }}"
+
+# vim:ts=2:sw=2:et:syn=yaml:

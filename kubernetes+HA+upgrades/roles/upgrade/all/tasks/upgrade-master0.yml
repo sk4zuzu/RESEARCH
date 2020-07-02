@@ -1,0 +1,38 @@
+---
+
+- assert:
+    that:
+      - kubernetes_version is defined
+      - kubernetes_version is string
+      - kubernetes_version | length > 0
+
+- include_tasks: "{{ ansible_os_family | lower }}/upgrade-kubeadm.yml"
+
+- shell: |
+    set -o errexit -o pipefail
+    kubectl drain {{ ansible_fqdn }} \
+      --ignore-daemonsets \
+      --delete-local-data \
+    |& tee -a /tmp/kubectl.log
+  args:
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+- shell: |
+    set -o errexit -o pipefail
+    kubeadm upgrade apply --yes v{{ kubernetes_version }} |& tee -a /tmp/kubeadm.log
+  args:
+    executable: /bin/bash
+
+- include_tasks: "{{ ansible_os_family | lower }}/upgrade-binaries.yml"
+
+- shell: |
+    set -o errexit -o pipefail
+    kubectl uncordon {{ ansible_fqdn }} |& tee -a /tmp/kubectl.log
+  args:
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+
+# vim:ts=2:sw=2:et:syn=yaml:

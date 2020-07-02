@@ -1,0 +1,13 @@
+---
+# {{ ansible_managed }}
+apiVersion: kubeadm.k8s.io/v1beta1
+kind: JoinConfiguration
+nodeRegistration:
+  name: {{ ansible_fqdn }}
+discovery:
+  bootstrapToken:
+    apiServerEndpoint: localhost:{{ CONTROL_PLANE_PORT }}
+    token: {{ _token }}
+    caCertHashes:
+      - {{ _hash }}
+# vim:ts=2:sw=2:et:syn=yaml:

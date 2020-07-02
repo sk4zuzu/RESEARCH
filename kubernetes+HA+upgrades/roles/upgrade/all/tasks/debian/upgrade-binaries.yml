@@ -1,0 +1,25 @@
+---
+
+- assert:
+    that:
+      - kubernetes_version is defined
+      - kubernetes_version is string
+      - kubernetes_version | length > 0
+
+- vars:
+    kubernetes_version_apt: "{{ kubernetes_version }}-00"
+
+  block:
+    - name: install binaries
+      apt:
+        name:
+          - "kubelet={{ kubernetes_version_apt }}"
+          - "kubeadm={{ kubernetes_version_apt }}"
+          - "kubectl={{ kubernetes_version_apt }}"
+        state: present
+      register: result
+      until: result is success
+      retries: 20
+      delay: 12
+
+# vim:ts=2:sw=2:et:syn=yaml:

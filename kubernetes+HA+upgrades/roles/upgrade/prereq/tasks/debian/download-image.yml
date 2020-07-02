@@ -1,0 +1,55 @@
+---
+
+- assert:
+    that:
+      - kubernetes_version is defined
+      - kubernetes_version is string
+      - kubernetes_version | length > 0
+
+- block: &delete
+    - name: delete binaries
+      apt:
+        autoremove: true
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: absent
+      register: result
+      until: result is success
+      retries: 20
+      delay: 12
+
+- vars:
+    kubernetes_version_apt: "{{ kubernetes_version }}-00"
+
+  always: *delete
+
+  block:
+    - name: install binaries
+      apt:
+        name:
+          - "kubelet={{ kubernetes_version_apt }}"
+          - "kubeadm={{ kubernetes_version_apt }}"
+          - "kubectl={{ kubernetes_version_apt }}"
+        state: present
+      register: result
+      until: result is success
+      retries: 20
+      delay: 12
+
+    - name: pull docker images
+      shell: |
+        set -o errexit -o pipefail
+        kubeadm config images pull \
+          --kubernetes-version=v{{ kubernetes_version }} \
+        | tee -a /tmp/kubeadm.log
+      args:
+        executable: /bin/bash
+      register: result
+      until: result is success
+      retries: 20
+      delay: 12
+      changed_when: false
+
+# vim:ts=2:sw=2:et:syn=yaml:

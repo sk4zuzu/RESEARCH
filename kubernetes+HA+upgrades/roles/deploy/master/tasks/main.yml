@@ -1,0 +1,16 @@
+---
+
+- include_tasks: "{{ ansible_os_family | lower }}/install-binaries.yml"
+
+- name: render profile config
+  template:
+    dest: /etc/profile.d/kubeconfig.sh
+    src: kubeconfig.sh.j2
+
+- when: inventory_hostname == groups.master.0
+  import_tasks: init-k8s.yml
+
+- when: inventory_hostname != groups.master.0
+  import_tasks: join-k8s.yml
+
+# vim:ts=2:sw=2:et:syn=yaml:

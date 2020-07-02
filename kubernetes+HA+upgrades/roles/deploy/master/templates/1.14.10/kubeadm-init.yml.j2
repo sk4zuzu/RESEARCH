@@ -1,0 +1,41 @@
+---
+# {{ ansible_managed }}
+apiVersion: kubeadm.k8s.io/v1beta1
+kind: InitConfiguration
+nodeRegistration:
+  name: {{ ansible_fqdn }}
+localApiEndpoint:
+  advertiseAddress: {{ ansible_default_ipv4.address }}
+  bindPort: 6443
+---
+# {{ ansible_managed }}
+apiVersion: kubeadm.k8s.io/v1beta1
+kubernetesVersion: v1.14.10
+kind: ClusterConfiguration
+clusterName: {{ CLUSTER_NAME }}
+controlPlaneEndpoint: localhost:{{ CONTROL_PLANE_PORT }}
+networking:
+  podSubnet: 10.244.0.0/16
+certificatesDir: /etc/kubernetes/pki/
+controllerManager:
+  extraArgs:
+    address: 0.0.0.0
+scheduler:
+  extraArgs:
+    address: 0.0.0.0
+---
+# {{ ansible_managed }}
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+systemReserved:
+  memory: "250Mi"
+kubeReserved:
+  memory: "250Mi"
+authentication:
+  webhook:
+    enabled: true
+  anonymous:
+    enabled: false
+authorization:
+  mode: Webhook
+# vim:ts=2:sw=2:et:syn=yaml:

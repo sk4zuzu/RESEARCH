@@ -1,0 +1,13 @@
+---
+
+- name: restart docker
+  systemd:
+    name: docker
+    state: restarted
+
+- name: restart haproxy
+  systemd:
+    name: haproxy
+    state: restarted
+
+# vim:ts=2:sw=2:et:syn=yaml:

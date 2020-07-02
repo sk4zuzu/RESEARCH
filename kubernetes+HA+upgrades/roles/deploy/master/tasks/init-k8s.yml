@@ -1,0 +1,42 @@
+---
+
+- name: render kubeadm config
+  template:
+    dest: /etc/kubernetes/kubeadm-init.yml
+    src: "{{ KUBERNETES_VERSION }}/kubeadm-init.yml.j2"
+
+- name: initialize kubernetes cluster
+  shell: |
+    set -o errexit -o pipefail
+    kubeadm init \
+      --config /etc/kubernetes/kubeadm-init.yml \
+    |& tee -a /tmp/kubeadm.log
+  args:
+    executable: /bin/bash
+    creates: /etc/kubernetes/admin.conf
+
+- name: download flannel manifest
+  get_url:
+    url: https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+    dest: /etc/kubernetes/kube-flannel.yml
+  register: result
+
+- when: result is changed
+  block:
+    - name: apply flannel manifest
+      shell: |
+        set -o errexit -o pipefail
+        kubectl apply \
+          --namespace kube-system \
+          --filename /etc/kubernetes/kube-flannel.yml \
+        |& tee -a /tmp/kubectl.log
+      args:
+        executable: /bin/bash
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+
+- import_tasks: load-pki.yml
+
+- import_tasks: load-token.yml
+
+# vim:ts=2:sw=2:et:syn=yaml:
