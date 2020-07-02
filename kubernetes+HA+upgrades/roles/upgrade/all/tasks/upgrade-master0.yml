@@ -20,6 +20,13 @@
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
 
+- name: "upgrade plan {{ ansible_fqdn }}"
+  shell: |
+    set -o errexit -o pipefail
+    kubeadm upgrade plan |& tee -a /tmp/kubeadm.log
+  args:
+    executable: /bin/bash
+
 - name: "upgrade master {{ ansible_fqdn }}"
   shell: |
     set -o errexit -o pipefail
