@@ -41,4 +41,6 @@
       notify:
         - restart haproxy
 
+- include_tasks: "{{ ansible_os_family | lower }}/install-helm.yml"
+
 # vim:ts=2:sw=2:et:syn=yaml:
