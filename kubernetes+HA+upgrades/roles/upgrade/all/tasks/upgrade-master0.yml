@@ -10,11 +10,10 @@
 
 - name: "drain master {{ ansible_fqdn }}"
   shell: |
-    set -o errexit -o pipefail
+    set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubectl.log)
     kubectl drain {{ ansible_fqdn }} \
       --ignore-daemonsets \
-      --delete-local-data \
-    |& tee -a /tmp/kubectl.log
+      --delete-local-data
   args:
     executable: /bin/bash
   environment:
@@ -26,15 +25,15 @@
 
 - name: "upgrade plan {{ ansible_fqdn }}"
   shell: |
-    set -o errexit -o pipefail
-    kubeadm upgrade plan |& tee -a /tmp/kubeadm.log
+    set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubeadm.log)
+    kubeadm upgrade plan
   args:
     executable: /bin/bash
 
 - name: "upgrade master {{ ansible_fqdn }}"
   shell: |
-    set -o errexit -o pipefail
-    kubeadm upgrade apply --yes v{{ kubernetes_version }} |& tee -a /tmp/kubeadm.log
+    set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubeadm.log)
+    kubeadm upgrade apply --yes v{{ kubernetes_version }}
   args:
     executable: /bin/bash
 
@@ -42,8 +41,8 @@
 
 - name: "uncordon master {{ ansible_fqdn }}"
   shell: |
-    set -o errexit -o pipefail
-    kubectl uncordon {{ ansible_fqdn }} |& tee -a /tmp/kubectl.log
+    set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubectl.log)
+    kubectl uncordon {{ ansible_fqdn }}
   args:
     executable: /bin/bash
   environment:

@@ -17,8 +17,8 @@
         state: absent
       register: result
       until: result is success
-      retries: 20
-      delay: 12
+      retries: 69
+      delay: 2
 
 - vars:
     kubernetes_version_apt: "{{ kubernetes_version }}-00"
@@ -35,21 +35,20 @@
         state: present
       register: result
       until: result is success
-      retries: 20
-      delay: 12
+      retries: 69
+      delay: 2
 
     - name: pull docker images
       shell: |
-        set -o errexit -o pipefail
+        set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubeadm.log)
         kubeadm config images pull \
-          --kubernetes-version=v{{ kubernetes_version }} \
-        | tee -a /tmp/kubeadm.log
+          --kubernetes-version=v{{ kubernetes_version }}
       args:
         executable: /bin/bash
       register: result
       until: result is success
-      retries: 20
-      delay: 12
+      retries: 69
+      delay: 2
       changed_when: false
 
 # vim:ts=2:sw=2:et:syn=yaml:

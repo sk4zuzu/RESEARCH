@@ -2,11 +2,10 @@
 
 - name: create node token
   shell: |
-    set -o errexit -o pipefail
+    set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubeadm.log)
     kubeadm token create \
       --ttl 0 \
       --groups "system:bootstrappers:kubeadm:default-node-token" \
-    |& tee -a /tmp/kubeadm.log
   args:
     executable: /bin/bash
   register: result

@@ -25,11 +25,10 @@
       block:
         - name: "drain node {{ _ansible_fqdn }}"
           shell: |
-            set -o errexit -o pipefail
+            set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubectl.log)
             kubectl drain {{ _ansible_fqdn }} \
               --ignore-daemonsets \
-              --delete-local-data \
-            |& tee -a /tmp/kubectl.log
+              --delete-local-data
           args:
             executable: /bin/bash
           environment:
@@ -42,17 +41,16 @@
     - block:
         - name: "upgrade node {{ _ansible_fqdn }}"
           shell: |
-            set -o errexit -o pipefail
-            kubeadm upgrade node |& tee -a /tmp/kubeadm.log
+            set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubeadm.log)
+            kubeadm upgrade node
           args:
             executable: /bin/bash
       rescue:
         - name: "upgrade node {{ _ansible_fqdn }} (rescued)"
           shell: |
-            set -o errexit -o pipefail
+            set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubeadm.log)
             kubeadm upgrade node config \
-              --kubelet-version v{{ kubernetes_version }} \
-            |& tee -a /tmp/kubeadm.log
+              --kubelet-version v{{ kubernetes_version }}
           args:
             executable: /bin/bash
 
@@ -62,8 +60,8 @@
       block:
         - name: "uncordon node {{ _ansible_fqdn }}"
           shell: |
-            set -o errexit -o pipefail
-            kubectl uncordon {{ _ansible_fqdn }} |& tee -a /tmp/kubectl.log
+            set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubectl.log)
+            kubectl uncordon {{ _ansible_fqdn }}
           args:
             executable: /bin/bash
           environment:

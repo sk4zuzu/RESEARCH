@@ -24,10 +24,9 @@
 
 - name: join another node
   shell: |
-    set -o errexit -o pipefail
+    set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubeadm.log)
     kubeadm join \
-      --config /etc/kubernetes/kubeadm-join.yml \
-    |& tee -a /tmp/kubeadm.log
+      --config /etc/kubernetes/kubeadm-join.yml
   args:
     executable: /bin/bash
     creates: /etc/kubernetes/kubelet.conf

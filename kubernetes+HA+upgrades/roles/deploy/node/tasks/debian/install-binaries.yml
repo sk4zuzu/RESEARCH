@@ -15,8 +15,8 @@
         state: present
       register: result
       until: result is success
-      retries: 20
-      delay: 12
+      retries: 69
+      delay: 2
 
     - name: install binaries
       apt:
@@ -27,7 +27,7 @@
         state: present
       register: result
       until: result is success
-      retries: 20
-      delay: 12
+      retries: 69
+      delay: 2
 
 # vim:ts=2:sw=2:et:syn=yaml:

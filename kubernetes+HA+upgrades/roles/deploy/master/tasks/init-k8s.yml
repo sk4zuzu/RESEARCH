@@ -7,10 +7,9 @@
 
 - name: initialize kubernetes cluster
   shell: |
-    set -o errexit -o pipefail
+    set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubeadm.log)
     kubeadm init \
-      --config /etc/kubernetes/kubeadm-init.yml \
-    |& tee -a /tmp/kubeadm.log
+      --config /etc/kubernetes/kubeadm-init.yml
   args:
     executable: /bin/bash
     creates: /etc/kubernetes/admin.conf
@@ -25,11 +24,10 @@
   block:
     - name: apply flannel manifest
       shell: |
-        set -o errexit -o pipefail
+        set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubectl.log)
         kubectl apply \
           --namespace kube-system \
-          --filename /etc/kubernetes/kube-flannel.yml \
-        |& tee -a /tmp/kubectl.log
+          --filename /etc/kubernetes/kube-flannel.yml
       args:
         executable: /bin/bash
       environment:

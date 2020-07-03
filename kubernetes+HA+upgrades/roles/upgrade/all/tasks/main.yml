@@ -2,7 +2,10 @@
 
 - name: get apiserver version
   shell: |
+    set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubectl.log)
     kubectl version -o yaml
+  args:
+    executable: /bin/bash
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
   register: result
