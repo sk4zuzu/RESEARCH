@@ -1,0 +1,13 @@
+---
+# {{ ansible_managed }}
+kind: EncryptionConfiguration
+apiVersion: apiserver.config.k8s.io/v1
+resources:
+  - resources: [secrets]
+    providers:
+      - aescbc:
+          keys:
+            - name: key1
+              secret: "{{ _secret }}"
+      - identity: {}
+# vim:ts=2:sw=2:et:syn=yaml:
