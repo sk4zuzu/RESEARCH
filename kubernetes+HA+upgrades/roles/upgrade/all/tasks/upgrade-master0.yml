@@ -19,6 +19,10 @@
     executable: /bin/bash
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
+  register: result
+  until: result is success
+  retries: 69
+  delay: 2
 
 - name: "upgrade plan {{ ansible_fqdn }}"
   shell: |
@@ -44,5 +48,9 @@
     executable: /bin/bash
   environment:
     KUBECONFIG: /etc/kubernetes/admin.conf
+  register: result
+  until: result is success
+  retries: 69
+  delay: 2
 
 # vim:ts=2:sw=2:et:syn=yaml:
