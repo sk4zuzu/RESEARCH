@@ -1,0 +1,30 @@
+---
+
+- name: render etcd-encryption config
+  template:
+    dest: /etc/kubernetes/pki/etcd/etcd-encryption.conf
+    src: etcd-encryption.conf.j2
+  vars:
+    _secret: >-
+      {{ lookup('password', '/dev/null length=32') | b64encode }}
+  no_log: true
+
+- import_tasks: save-apiserver-config.yml
+
+- name: encrypt secrets
+  shell: |
+    set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubectl.log)
+    kubectl get secrets \
+      --all-namespaces \
+      -o json \
+    | kubectl replace -f-
+  args:
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: result
+  until: result is success
+  retries: 69
+  delay: 2
+
+# vim:ts=2:sw=2:et:syn=yaml:

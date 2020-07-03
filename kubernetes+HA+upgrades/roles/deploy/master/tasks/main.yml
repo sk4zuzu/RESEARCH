@@ -8,9 +8,7 @@
     src: kubeconfig.sh.j2
 
 - when: inventory_hostname == groups.master.0
-  block:
-    - import_tasks: init-k8s.yml
-    - import_tasks: etcd-encryption.yml
+  import_tasks: init-k8s.yml
 
 - when: inventory_hostname != groups.master.0
   import_tasks: join-k8s.yml

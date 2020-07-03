@@ -33,6 +33,8 @@
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
 
+- import_tasks: init-etcd-encryption.yml
+
 - import_tasks: load-pki.yml
 
 - import_tasks: load-token.yml

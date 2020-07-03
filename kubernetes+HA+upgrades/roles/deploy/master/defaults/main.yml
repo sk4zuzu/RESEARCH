@@ -9,9 +9,10 @@ kubernetes_pki_files:
   - pki/ca.key
   - pki/sa.key
   - pki/sa.pub
-  - pki/etcd/ca.crt
-  - pki/etcd/ca.key
   - pki/front-proxy-ca.crt
   - pki/front-proxy-ca.key
+  - pki/etcd/ca.crt
+  - pki/etcd/ca.key
+  - pki/etcd/etcd-encryption.conf
 
 # vim:ts=2:sw=2:et:syn=yaml:

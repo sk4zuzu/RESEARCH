@@ -32,5 +32,11 @@
   args:
     executable: /bin/bash
     creates: /etc/kubernetes/admin.conf
+  register: result
+  until: result is success
+  retries: 69
+  delay: 2
+
+- import_tasks: save-apiserver-config.yml
 
 # vim:ts=2:sw=2:et:syn=yaml:
