@@ -12,7 +12,6 @@
   loop: >-
     {{ kubernetes_pki_files }}
   register: result
-  no_log: true
 
 - name: yield filename-to-content pki map
   set_fact:
@@ -24,6 +23,5 @@
       {{ result.results | map(attribute='content')
                         | map('b64decode')
                         | list }}
-  no_log: true
 
 # vim:ts=2:sw=2:et:syn=yaml:

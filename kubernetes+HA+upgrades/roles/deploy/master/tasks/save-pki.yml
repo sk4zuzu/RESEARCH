@@ -20,6 +20,5 @@
       {{ item.value }}
   loop: >-
     {{ hostvars[groups.master.0].kubernetes_pki_file_map | dict2items }}
-  no_log: true
 
 # vim:ts=2:sw=2:et:syn=yaml:

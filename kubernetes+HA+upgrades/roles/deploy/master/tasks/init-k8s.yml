@@ -1,5 +1,17 @@
 ---
 
+- file:
+    path: /etc/kubernetes/pki/etcd/
+    state: directory
+
+- name: render etcd encryption config
+  template:
+    dest: /etc/kubernetes/pki/etcd/etcd-encryption.conf
+    src: etcd-encryption.conf.j2
+  vars:
+    _secret: >-
+      {{ lookup('password', '/dev/null length=32') | b64encode }}
+
 - name: render kubeadm config
   template:
     dest: /etc/kubernetes/kubeadm-init.yml
@@ -32,8 +44,6 @@
         executable: /bin/bash
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
-
-- import_tasks: init-etcd-encryption.yml
 
 - import_tasks: load-pki.yml
 

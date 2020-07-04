@@ -17,6 +17,9 @@ controlPlaneEndpoint: localhost:{{ CONTROL_PLANE_PORT }}
 networking:
   podSubnet: 10.244.0.0/16
 certificatesDir: /etc/kubernetes/pki/
+apiServer:
+  extraArgs:
+    encryption-provider-config: /etc/kubernetes/pki/etcd/etcd-encryption.conf
 controllerManager:
   extraArgs:
     address: 0.0.0.0

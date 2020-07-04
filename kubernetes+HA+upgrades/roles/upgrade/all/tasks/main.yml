@@ -11,35 +11,34 @@
   register: result
   changed_when: false
 
-- vars:
-    _running_version: >-
+- set_fact:
+    running_version: >-
       {{ (result.stdout | from_yaml).serverVersion.gitVersion.lstrip('v') }}
 
+- assert:
+    that:
+      - running_version is version(kubernetes_versions | last, '<')
+      # if running version is inside the version set, make sure it's an exact/supported one (implication)
+      - not (running_version is version(kubernetes_versions | first, '>')) or (running_version in kubernetes_versions)
+    fail_msg: "unsupported version {{ running_version }}"
+
+- vars:
+    _versions_joined: >-
+      {{ kubernetes_versions | unique | join('|') }}
+
+    _rhs_versions_joined_split_by_running_version: >-
+      {{ _versions_joined.split(running_version) | last }}
+
+    _rhs_versions: >-
+      {{ _rhs_versions_joined_split_by_running_version.split('|') }}
+
+    _rhs_versions_cleaned: >-
+      {{ _rhs_versions | select | list }}
+
   block:
-    - assert:
-        that:
-          - _running_version is version(kubernetes_versions | last, '<')
-          # if running version is inside the version set, make sure it's an exact/supported one (implication)
-          - not (_running_version is version(kubernetes_versions | first, '>')) or (_running_version in kubernetes_versions)
-        fail_msg: "unsupported version {{ _running_version }}"
-
-    - vars:
-        _versions_joined: >-
-          {{ kubernetes_versions | unique | join('|') }}
-
-        _rhs_versions_joined_split_by_running_version: >-
-          {{ _versions_joined.split(_running_version) | last }}
-
-        _rhs_versions: >-
-          {{ _rhs_versions_joined_split_by_running_version.split('|') }}
-
-        _rhs_versions_cleaned: >-
-          {{ _rhs_versions | select | list }}
-
-      block:
-        - include_tasks: upgrade-once.yml
-          loop_control:
-            loop_var: kubernetes_version
-          loop: "{{ _rhs_versions_cleaned }}"
+    - include_tasks: upgrade-once.yml
+      loop_control:
+        loop_var: kubernetes_version
+      loop: "{{ _rhs_versions_cleaned }}"
 
 # vim:ts=2:sw=2:et:syn=yaml:

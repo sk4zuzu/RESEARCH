@@ -2,16 +2,21 @@
 
 - hosts: master:node
   gather_facts: true
+  pre_tasks: []
+
+- hosts: master:node
   roles:
     - role: deploy/prereq
-      tags: [prereq]
+  tags: [prereq]
 
-    - when: inventory_hostname in groups.master
-      role: deploy/master
-      tags: [deploy]
+- hosts: master
+  roles:
+    - role: deploy/master
+  tags: [deploy]
 
-    - when: inventory_hostname in groups.node
-      role: deploy/node
-      tags: [deploy]
+- hosts: node
+  roles:
+    - role: deploy/node
+  tags: [deploy]
 
 # vim:ts=2:sw=2:et:syn=yaml:
