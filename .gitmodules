@@ -1,5 +1,5 @@
 [submodule "kubelo+Azure/kubelo"]
-	path = kubelo+Azure/kubelo
+	path = kubelo+Azure+autoscale/kubelo
 	url = https://github.com/sk4zuzu/kubelo.git
 [submodule "kubelo+AWS/kubelo"]
 	path = kubelo+AWS/kubelo
