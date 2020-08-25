@@ -99,11 +99,8 @@
               - /usr/local/etc/haproxy/haproxy.cfg
             terminal: false
           linux:
-            namespaces:
-              - type: pid
-              - type: ipc
-              - type: uts
-              - type: mount
+            namespaces: >-
+              {{ _document.linux.namespaces | selectattr('type', '!=', 'network') | list }}
           mounts: >-
             {{ (_document.mounts + _extend) | unique }}
 
