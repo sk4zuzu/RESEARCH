@@ -1,0 +1,139 @@
+---
+
+- hosts: target
+  tasks:
+    - wait_for_connection:
+
+    - copy:
+        dest: /etc/haproxy/haproxy-health.http
+        content: |
+          HTTP/1.1 200 Ok
+          Cache-Control: no-cache, no-store
+          Connection: close
+          Content-Type: text/plain
+
+          OK
+
+    - copy:
+        dest: /etc/haproxy/haproxy.cfg
+        content: |
+          global
+              log stdout format raw local0
+
+          defaults
+              log global
+              retries 3
+              maxconn 2000
+              timeout connect 5s
+              timeout client 120s
+              timeout server 120s
+
+          frontend health
+              mode http
+              bind 0.0.0.0:8686
+              default_backend health
+
+          backend health
+              mode http
+              errorfile 503 /usr/local/etc/haproxy/haproxy-health.http
+              http-request set-log-level silent
+
+    - set_fact:
+        runc_binary: /usr/bin/runc
+        runc_root: /opt/runc
+
+    - set_fact:
+        haproxy_dir: "{{ runc_root }}/haproxy"
+        haproxy_image: haproxy:2.2.2-alpine
+        haproxy_archive: /tmp/haproxy-2.2.2-alpine.tar
+
+    - shell: |
+        docker pull "{{ haproxy_image }}" && docker export $(docker create "{{ haproxy_image }}") --output "{{ haproxy_archive }}"
+      args:
+        creates: "{{ haproxy_archive }}"
+
+    - shell: |
+        install -d "{{ haproxy_dir }}/rootfs/" && tar xpf "{{ haproxy_archive }}" -C "{{ haproxy_dir }}/rootfs/"
+      args:
+        creates: "{{ haproxy_dir }}/rootfs/"
+
+    - shell: |
+        runc spec
+      args:
+        chdir: "{{ haproxy_dir }}/"
+        creates: "{{ haproxy_dir }}/config.json"
+
+    - slurp:
+        src: "{{ haproxy_dir }}/config.json"
+      register: slurp_config_json
+
+    - copy:
+        dest: "{{ haproxy_dir }}/config.json"
+        content: |
+          {{ _document | combine(_update, recursive=true) | to_nice_json }}
+      vars:
+        _document: >-
+          {{ slurp_config_json.content | b64decode | from_json }}
+        _extend:
+          - destination: /usr/local/etc/haproxy/haproxy.cfg
+            source: /etc/haproxy/haproxy.cfg
+            type: bind
+            options: [rbind, ro]
+          - destination: /usr/local/etc/haproxy/haproxy-health.http
+            source: /etc/haproxy/haproxy-health.http
+            type: bind
+            options: [rbind, ro]
+        _update:
+          process:
+            args:
+              - /usr/local/sbin/haproxy
+              - -f
+              - /usr/local/etc/haproxy/haproxy.cfg
+            terminal: false
+          linux:
+            namespaces:
+              - type: pid
+              - type: ipc
+              - type: uts
+              - type: mount
+          mounts: >-
+            {{ (_document.mounts + _extend) | unique }}
+
+    - copy:
+        dest: /etc/systemd/system/haproxy1.service
+        content: |
+          [Unit]
+          After=network.target
+
+          [Service]
+          Type=forking
+          WorkingDirectory={{ haproxy_dir }}
+          ExecStartPre={{ runc_binary }} create haproxy1
+          ExecStart={{ runc_binary }} start haproxy1
+          ExecStop={{ runc_binary }} kill haproxy1 SIGUSR1
+          ExecStopPost={{ runc_binary }} delete haproxy1
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - systemd:
+        name: haproxy1
+        state: started
+        enabled: true
+        daemon_reload: true
+
+    - uri:
+        url: http://127.0.0.1:8686/
+        return_content: true
+      register: uri_haproxy
+      until:
+        - uri_haproxy is success
+      retries: 5
+      delay: 2
+
+    - assert:
+        that:
+          - uri_haproxy.status == 200
+          - uri_haproxy.content.strip() == "OK"
+
+# vim:ts=2:sw=2:et:syn=yaml:
