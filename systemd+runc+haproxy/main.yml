@@ -4,6 +4,10 @@
   tasks:
     - wait_for_connection:
 
+    - file:
+        path: /etc/haproxy/
+        state: directory
+
     - copy:
         dest: /etc/haproxy/haproxy-health.http
         content: |
@@ -38,8 +42,12 @@
               errorfile 503 /usr/local/etc/haproxy/haproxy-health.http
               http-request set-log-level silent
 
+    - shell: |
+        which runc
+      register: shell_which_runc
+
     - set_fact:
-        runc_binary: /usr/bin/runc
+        runc_binary: "{{ shell_which_runc.stdout.strip() }}"
         runc_root: /opt/runc
 
     - set_fact:
@@ -58,7 +66,7 @@
         creates: "{{ haproxy_dir }}/rootfs/"
 
     - shell: |
-        runc spec
+        {{ runc_binary }} spec
       args:
         chdir: "{{ haproxy_dir }}/"
         creates: "{{ haproxy_dir }}/config.json"
@@ -108,8 +116,7 @@
           [Service]
           Type=forking
           WorkingDirectory={{ haproxy_dir }}
-          ExecStartPre={{ runc_binary }} create haproxy1
-          ExecStart={{ runc_binary }} start haproxy1
+          ExecStart={{ runc_binary }} run --detach haproxy1
           ExecStop={{ runc_binary }} kill haproxy1 SIGUSR1
           ExecStopPost={{ runc_binary }} delete haproxy1
 
