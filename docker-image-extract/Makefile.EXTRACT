@@ -1,0 +1,99 @@
+
+DEBUG ?=
+
+IMAGE_TAR  ?= image.tar
+IMAGE_NAME := $(basename $(notdir $(IMAGE_TAR)))
+
+SELF  := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+SHELL := $(shell which bash)
+
+CACHE := $(SELF)/.cache
+_IMG_ := $(CACHE)/$(IMAGE_NAME).img
+_DEP_ := $(CACHE)/$(IMAGE_NAME).dep
+_TMP_ := $(CACHE)/$(IMAGE_NAME).tmp
+_OUT_ := $(CACHE)/$(IMAGE_NAME).out
+
+define JQ_MAKE_DEPS
+( .[0].Layers | map(split("/")[0]) \
+              | map("$(_TMP_)/" + .) \
+              | [. + [""], [""] + .] \
+              | transpose \
+              | map(join(": ")) ) [1:-1][]
+endef
+
+define JQ_GET_FINAL_LAYER
+"$(_TMP_)/" + ( .[0].Layers[-1] | split("/")[0] )
+endef
+
+define BASH_CLEAN_LAYERS
+set -o errexit -o nounset -o pipefail
+
+export OUTPUT="$$1" && [[ -n "$$OUTPUT" ]] && [[ "$$OUTPUT" != / ]]
+export LAYER="$$2" && [[ -n "$$LAYER" ]] && [[ "$$LAYER" != / ]]
+
+(cd $$LAYER/ && find . -type f -name '.wh..wh..opq') | while IFS= read WHITEOUT; do
+    echo WHITEOUT = "$$LAYER/$$WHITEOUT"
+    [[ -n "$$DEBUG" ]] && echo rm -f "$$LAYER/$$WHITEOUT"
+    rm -f "$$LAYER/$$WHITEOUT"
+done
+(cd $$LAYER/ && find . -type f -name '.wh.*') | while IFS= read WHITEOUT; do
+    echo WHITEOUT = "$$LAYER/$$WHITEOUT"
+    [[ -n "$$DEBUG" ]] && echo rm -rf "$$LAYER/$$WHITEOUT"
+    rm -rf "$$LAYER/$$WHITEOUT"
+    [[ -n "$$DEBUG" ]] && echo rm -rf "$$OUTPUT/$${WHITEOUT/.wh./}"
+    rm -rf "$$OUTPUT/$${WHITEOUT/.wh./}"
+done
+endef
+
+define BASH_MERGE_LAYERS
+set -o errexit -o nounset -o pipefail
+
+export LAYER="$$1" && [[ -n "$$LAYER" ]] && [[ "$$LAYER" != / ]]
+export OUTPUT="$$2" && [[ -n "$$OUTPUT" ]] && [[ "$$OUTPUT" != / ]]
+
+(cd $$OUTPUT/ && find . -type f,d; cd $$LAYER/ && find . -type l) | sort | uniq -d | while IFS= read TO_BE_REMOVED; do
+    echo TO_BE_REMOVED = "$$OUTPUT/$$TO_BE_REMOVED"
+    [[ -n "$$DEBUG" ]] && echo rm -rf "$$OUTPUT/$$TO_BE_REMOVED"
+    rm -rf "$$OUTPUT/$$TO_BE_REMOVED"
+done
+(cd $$OUTPUT/ && find . -type l; cd $$LAYER/ && find . -type f,d) | sort | uniq -d | while IFS= read TO_BE_REMOVED; do
+    echo TO_BE_REMOVED = "$$OUTPUT/$$TO_BE_REMOVED"
+    [[ -n "$$DEBUG" ]] && echo rm -rf "$$OUTPUT/$$TO_BE_REMOVED"
+    rm -rf "$$OUTPUT/$$TO_BE_REMOVED"
+done
+
+[[ -n "$$DEBUG" ]] && echo cp --preserve --recursive $$LAYER/* $$OUTPUT/
+cp --preserve --recursive $$LAYER/* $$OUTPUT/
+endef
+
+FINAL_LAYER := $(shell jq -r '$(JQ_GET_FINAL_LAYER)' $(_IMG_)/manifest.json)
+
+export
+
+.PHONY: all deps clean
+
+all: $(FINAL_LAYER)
+
+deps: $(_DEP_)
+	@:
+
+clean:
+	rm -rf $(_DEP_) $(_IMG_) $(_TMP_)
+
+$(_IMG_): $(IMAGE_TAR)
+	install -d $@/
+	tar xpf $< -C $@/
+
+$(_DEP_): $(_IMG_)
+	jq -r '$(JQ_MAKE_DEPS)' $(_IMG_)/manifest.json | tee $@
+
+include $(_DEP_)
+
+$(_TMP_)/%:
+	install -d $@/
+	tar xf $(_IMG_)/$*/layer.tar -C $@/
+	install -d $(_OUT_)/
+	$(SHELL) -s <<< "$$BASH_CLEAN_LAYERS" "$(_OUT_)" "$@"
+	$(SHELL) -s <<< "$$BASH_MERGE_LAYERS" "$@" "$(_OUT_)"
+
+# vim:ts=4:sw=4:noet:syn=make:
