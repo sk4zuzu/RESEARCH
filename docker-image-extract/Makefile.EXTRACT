@@ -66,7 +66,7 @@ done
 cp --preserve --recursive $$LAYER/* $$OUTPUT/
 endef
 
-FINAL_LAYER := $(shell jq -r '$(JQ_GET_FINAL_LAYER)' $(_IMG_)/manifest.json)
+FINAL_LAYER = $(shell jq -r '$(JQ_GET_FINAL_LAYER)' $(_IMG_)/manifest.json)
 
 export
 
