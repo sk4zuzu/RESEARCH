@@ -62,8 +62,8 @@ done
     rm -rf "$$OUTPUT/$$TO_BE_REMOVED"
 done
 
-[[ -n "$$DEBUG" ]] && echo cp --preserve --recursive $$LAYER/* $$OUTPUT/
-cp --preserve --recursive $$LAYER/. $$OUTPUT/
+[[ -n "$$DEBUG" ]] && echo cp --preserve --recursive --no-dereference $$LAYER/* $$OUTPUT/
+cp --preserve --recursive --no-dereference $$LAYER/. $$OUTPUT/
 endef
 
 FINAL_LAYER = $(shell jq -r '$(JQ_GET_FINAL_LAYER)' $(_IMG_)/manifest.json)
