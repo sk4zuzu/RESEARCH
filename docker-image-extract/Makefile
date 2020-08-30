@@ -17,7 +17,8 @@ $(SELF)/$(1).tar:
 	docker save $(2) -o $$@
 
 $(CACHE)/$(1).out: $(SELF)/$(1).tar
-	make -f $(SELF)/Makefile.EXTRACT IMAGE_TAR="$$<" all clean
+	# make -f $(SELF)/Makefile.EXTRACT IMAGE_TAR="$$<" all clean
+	$(SELF)/extract-docker-image-V1.sh "$$<"
 	rm -rf $$@/.dockerenv $$@/dev/* $$@/etc/host{name,s} $$@/etc/{mtab,resolv.conf}
 
 $(CACHE)/$(1).exp:
