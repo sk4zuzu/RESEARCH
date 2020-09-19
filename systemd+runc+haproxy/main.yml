@@ -114,6 +114,7 @@
           Type=forking
           WorkingDirectory={{ haproxy_dir }}
           ExecStart={{ runc_binary }} run --detach haproxy1
+          ExecReload={{ runc_binary }} kill haproxy1 SIGUSR2
           ExecStop={{ runc_binary }} kill haproxy1 SIGUSR1
           ExecStopPost={{ runc_binary }} delete haproxy1
 
