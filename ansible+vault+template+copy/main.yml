@@ -14,7 +14,7 @@
         - &cleanup
           set_fact:
             rendered: []
-          #no_log: true
+          no_log: true
 
       rescue:
         - fail:
@@ -25,29 +25,35 @@
 
         - set_fact:
             rendered: >-
-              {{ rendered + [lookup('template', item ~ '.yml.j2')] }}
+              {{ rendered + [(lookup('template', item ~ '.yml.j2') | trim).lstrip('-')] }}
           loop: >-
             {{ names }}
           no_log: true
 
-        - shell: |
-            set -o errexit -o pipefail
-            ansible-vault encrypt_string | sed '/^!vault/d' \
-                                         | tr -d '[:blank:]' \
-                                         > encrypted.yml
-          args:
-            executable: bash
-            stdin: >-
-              {{ rendered | join }}
-          environment:
-            ANSIBLE_VAULT_PASSWORD_FILE: "{{ playbook_dir }}/vault-password-file"
-          #no_log: true
+        - vars:
+            _newline: "\n"
+            joined: >-
+              {{ rendered | join(_newline ~ '---' ~ _newline) }}
+          block:
+            - shell: |
+                set -o errexit -o pipefail
+                ansible-vault encrypt_string | sed '/^!vault/d' \
+                                             | tr -d '[:blank:]' \
+                                             > encrypted.yml
+              args:
+                executable: bash
+                stdin: >-
+                  {{ joined }}
+              environment:
+                ANSIBLE_VAULT_PASSWORD_FILE: "{{ playbook_dir }}/vault-password-file"
+              no_log: true
 
-        - shell: |
-            # kubectl apply -f-
-            cat
-          args:
-            stdin: >-
-              {{ rendered | join }}
+            - shell: |
+                # kubectl apply -f-
+                cat
+              args:
+                stdin: >-
+                  {{ joined }}
+              #no_log: true
 
 # vim:ts=2:sw=2:et:syn=yaml:
