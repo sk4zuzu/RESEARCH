@@ -21,31 +21,31 @@
 
         - set_fact:
             rendered: >-
-              {{ rendered + [[item, lookup('template', item ~ '.yml.j2')]] }}
+              {{ rendered + [{"name": item, "content": lookup('template', item ~ '.yml.j2')}] }}
           loop: >-
             {{ names }}
-          no_log: true
+          #no_log: true
 
         - shell: |
             set -o errexit -o pipefail
-            ansible-vault encrypt_string | tail -n+2 \
+            ansible-vault encrypt_string | sed '/^!vault/d' \
                                          | tr -d '[:blank:]' \
-                                         > encrypted-{{ item.0 }}.yml
+                                         > encrypted-{{ item.name }}.yml
           args:
             executable: bash
             stdin: >-
-              {{ item.1 }}
+              {{ item.content }}
           environment:
             ANSIBLE_VAULT_PASSWORD_FILE: "{{ playbook_dir }}/vault-password-file"
           loop: >-
             {{ rendered }}
-          no_log: true
+          #no_log: true
 
         - shell: |
             # kubectl apply -f-
             cat
           args:
             stdin: >-
-              {{ rendered | map(attribute=1) | join }}
+              {{ rendered | map(attribute='content') | join }}
 
 # vim:ts=2:sw=2:et:syn=yaml:
