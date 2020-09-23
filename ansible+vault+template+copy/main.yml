@@ -25,7 +25,7 @@
 
         - set_fact:
             rendered: >-
-              {{ rendered + [(lookup('template', item ~ '.yml.j2') | trim).lstrip('-')] }}
+              {{ rendered + [lookup('template', item ~ '.yml.j2')] }}
           loop: >-
             {{ names }}
           no_log: true
@@ -33,7 +33,12 @@
         - vars:
             _newline: "\n"
             joined: >-
-              {{ rendered | join(_newline ~ '---' ~ _newline) }}
+              {{ rendered | map('from_yaml_all')
+                          | map('select')
+                          | map('list')
+                          | sum(start=[])
+                          | map('to_nice_yaml')
+                          | join(_newline ~ '---' ~ _newline) }}
           block:
             - shell: |
                 set -o errexit -o pipefail
