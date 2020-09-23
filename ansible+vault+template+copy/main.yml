@@ -14,6 +14,7 @@
         - &cleanup
           set_fact:
             rendered: []
+            encrypted: {}
           no_log: true
 
       rescue:
@@ -30,27 +31,33 @@
             {{ names }}
           no_log: true
 
-        - vars:
-            _newline: "\n"
-            joined: >-
+        - command: ansible-vault encrypt_string --stdin-name encrypted
+          args:
+            stdin: >-
+              {{ _joined }}
+          environment:
+            ANSIBLE_VAULT_PASSWORD_FILE: "{{ playbook_dir }}/vault-password-file"
+          register: encrypted
+          vars:
+            _joined: >-
               {{ rendered | map('from_yaml_all')
                           | map('select')
                           | map('list')
                           | flatten
                           | map('to_nice_yaml')
                           | join(_newline ~ '---' ~ _newline) }}
+            _newline: "\n"
+          no_log: true
+
+        - vars:
+            _extracted: >-
+              {{ (encrypted.stdout | regex_replace('!vault', '') | from_yaml).encrypted }}
           block:
-            - shell: |
-                set -o errexit -o pipefail
-                ansible-vault encrypt_string | sed '/^!vault/d' \
-                                             | tr -d '[:blank:]' \
-                                             > encrypted.yml
-              args:
-                executable: bash
-                stdin: >-
-                  {{ joined }}
-              environment:
-                ANSIBLE_VAULT_PASSWORD_FILE: "{{ playbook_dir }}/vault-password-file"
+            - copy:
+                dest: encrypted.yml
+                content: >-
+                  {{ _extracted }}
+                decrypt: false
               no_log: true
 
             - shell: |
@@ -58,7 +65,7 @@
                 cat
               args:
                 stdin: >-
-                  {{ joined }}
+                  {{ _extracted }}
               #no_log: true
 
 # vim:ts=2:sw=2:et:syn=yaml:
