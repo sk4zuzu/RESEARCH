@@ -36,7 +36,7 @@
               {{ rendered | map('from_yaml_all')
                           | map('select')
                           | map('list')
-                          | sum(start=[])
+                          | flatten
                           | map('to_nice_yaml')
                           | join(_newline ~ '---' ~ _newline) }}
           block:
