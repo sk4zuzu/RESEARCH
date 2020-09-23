@@ -1,0 +1,51 @@
+---
+
+- hosts: 127.0.0.1
+  become: false
+  tasks:
+    - vars:
+        kek: kek
+        lel: lel
+        names:
+          - 00-kek
+          - 01-lel
+
+      always:
+        - &cleanup
+          set_fact:
+            rendered: []
+          no_log: true
+
+      block:
+        - *cleanup
+
+        - set_fact:
+            rendered: >-
+              {{ rendered + [[item, lookup('template', item ~ '.yml.j2')]] }}
+          loop: >-
+            {{ names }}
+          no_log: true
+
+        - shell: |
+            set -o errexit -o pipefail
+            ansible-vault encrypt_string | tail -n+2 \
+                                         | tr -d '[:blank:]' \
+                                         > encrypted-{{ item.0 }}.yml
+          args:
+            executable: bash
+            stdin: >-
+              {{ item.1 }}
+          environment:
+            ANSIBLE_VAULT_PASSWORD_FILE: "{{ playbook_dir }}/vault-password-file"
+          loop: >-
+            {{ rendered }}
+          no_log: true
+
+        - shell: |
+            # kubectl apply -f-
+            cat
+          args:
+            stdin: >-
+              {{ rendered | map(attribute=1) | join }}
+
+# vim:ts=2:sw=2:et:syn=yaml:
