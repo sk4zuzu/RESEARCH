@@ -16,6 +16,10 @@
             rendered: []
           #no_log: true
 
+      rescue:
+        - fail:
+            msg: "{{ ansible_failed_result }}"
+
       block:
         - *cleanup
 
@@ -24,7 +28,7 @@
               {{ rendered + [lookup('template', item ~ '.yml.j2')] }}
           loop: >-
             {{ names }}
-          #no_log: true
+          no_log: true
 
         - shell: |
             set -o errexit -o pipefail
