@@ -1,0 +1,54 @@
+---
+
+- name: get kubeadm config
+  shell: |
+    set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubectl.log)
+    kubectl get configmap kubeadm-config \
+      --namespace kube-system \
+      --output yaml
+  args:
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: result
+  changed_when: false
+
+- name: patch and apply kubeadm config
+  shell: |
+    set -o errexit -o pipefail && exec &> >(tee -a /tmp/kubectl.log)
+    kubectl apply \
+      --namespace kube-system \
+      --filename - \
+      <<< "$KUBEADM_CONFIGMAP_DOCUMENT"
+  args:
+    executable: /bin/bash
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+    KUBEADM_CONFIGMAP_DOCUMENT: >-
+      {{ _document | combine(_update2, recursive=true) | to_nice_yaml(indent=2) }}
+  vars:
+    # parse yaml payload
+    _document: >-
+      {{ result.stdout | from_yaml }}
+
+    # extract cluster config
+    _cluster_config: >-
+      {{ _document.data.ClusterConfiguration | from_yaml }}
+
+    # cluster config patch
+    _update1:
+      apiServer:
+        extraArgs:
+          encryption-provider-config: /etc/kubernetes/pki/etcd/etcd-encryption.conf
+
+    _cluster_config_updated: >-
+      {{ _cluster_config | combine(_update1, recursive=true) }}
+
+    # final update
+    _update2:
+      data:
+        ClusterConfiguration: >-
+          {{ _cluster_config_updated | to_nice_yaml(indent=2) }}
+  changed_when: false
+
+# vim:ts=2:sw=2:et:syn=yaml:

@@ -8,6 +8,7 @@
   template:
     dest: /etc/kubernetes/pki/etcd/etcd-encryption.conf
     src: etcd-encryption.conf.j2
+    force: false
   vars:
     _secret: >-
       {{ lookup('password', '/dev/null length=32') | b64encode }}
