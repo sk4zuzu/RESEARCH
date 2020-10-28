@@ -1,0 +1,15 @@
+---
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: this will succeed
+      include_tasks: included_task.yml
+      loop_control:
+        loop_var: path
+      loop: ["invalid"]
+
+    - name: this will fail
+      include_tasks: included_task.yml
+      vars:
+        path: "{{ item }}"
+      loop: ["invalid"]

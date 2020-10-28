@@ -1,0 +1,14 @@
+---
+- block:
+    - name: block
+      set_fact:
+        somefact: >-
+          {{ lookup('template', path ~ '.yml.j2') }}
+  rescue:
+    - name: rescue
+      set_fact:
+        somefact: >-
+          {{ lookup('file', path ~ '.yml.j2') }}
+  always:
+    - name: always
+      debug: var=somefact
