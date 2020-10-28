@@ -44,16 +44,16 @@ ok: [localhost] => changed=false
   ansible_facts:
     somefact: |-
       ---
-      index: "1"
-      {{ $%%&^*%*& "kek" }}
+      index: "2"
+      {{ $%%&^*%*& "lel" }}
 
 TASK [always] ******************************************************************
 task path: /home/asd/_git/RESEARCH/ansible+block-rescue-always/included_task.yml:13
 ok: [localhost] => 
   somefact: |-
     ---
-    index: "1"
-    {{ $%%&^*%*& "kek" }}
+    index: "2"
+    {{ $%%&^*%*& "lel" }}
 
 TASK [this will fail] **********************************************************
 task path: /home/asd/_git/RESEARCH/ansible+block-rescue-always/main.yml:11
@@ -73,18 +73,18 @@ ok: [localhost] => changed=false
   ansible_facts:
     somefact: |-
       ---
-      index: "1"
-      {{ $%%&^*%*& "kek" }}
+      index: "2"
+      {{ $%%&^*%*& "lel" }}
 
 TASK [always] ******************************************************************
 task path: /home/asd/_git/RESEARCH/ansible+block-rescue-always/included_task.yml:13
 fatal: [localhost]: FAILED! => 
   msg: |-
     An unhandled exception occurred while templating '---
-    index: "1"
-    {{ $%%&^*%*& "kek" }}'. Error was a <class 'ansible.errors.AnsibleError'>, original message: template error while templating string: unexpected char '$' at 18. String: ---
-    index: "1"
-    {{ $%%&^*%*& "kek" }}
+    index: "2"
+    {{ $%%&^*%*& "lel" }}'. Error was a <class 'ansible.errors.AnsibleError'>, original message: template error while templating string: unexpected char '$' at 18. String: ---
+    index: "2"
+    {{ $%%&^*%*& "lel" }}
 
 NO MORE HOSTS LEFT *************************************************************
 
