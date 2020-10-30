@@ -1,5 +1,4 @@
-
-SELF := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+SELF := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 
 export
 
@@ -7,5 +6,3 @@ export
 
 all:
 	python3 $(SELF)/main.py
-
-# vim:ts=4:sw=4:noet:syn=make:
