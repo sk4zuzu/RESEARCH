@@ -5,6 +5,54 @@ import jsonschema
 import textwrap
 import unittest
 
+
+class TestMinimumMaximum(unittest.TestCase):
+    SCHEMA = textwrap.dedent("""
+    type: object
+    required: [specification]
+    properties:
+      specification:
+        type: object
+        properties:
+          advanced:
+            type: object
+            properties:
+              certificates:
+                type: object
+                properties:
+                  expiration_days:
+                    type: integer
+                    minimum: 1
+                    maximum: 24855
+    """)
+
+    DOCUMENT1 = textwrap.dedent("""
+    specification:
+      advanced:
+        certificates:
+          location: /etc/kubernetes/pki
+          expiration_days: {expiration_days}
+          renew: true
+    """)
+
+    def _validate_DOCUMENT1(self, expiration_days):
+        jsonschema.validate(
+            instance=yaml.load(self.DOCUMENT1.format(expiration_days=expiration_days), Loader=yaml.SafeLoader),
+            schema=yaml.load(self.SCHEMA, Loader=yaml.SafeLoader),
+        )
+
+    def test_DOCUMENT1_with_100_000(self):
+        with self.assertRaises(jsonschema.exceptions.ValidationError):
+            self._validate_DOCUMENT1(100_000)
+
+    def test_DOCUMENT1_with_0(self):
+        with self.assertRaises(jsonschema.exceptions.ValidationError):
+            self._validate_DOCUMENT1(0)
+
+    def test_DOCUMENT1_with_8686(self):
+        self._validate_DOCUMENT1(8686)
+
+
 class TestIfThenElse(unittest.TestCase):
     SCHEMA = textwrap.dedent("""
     type: object
@@ -88,7 +136,6 @@ class TestIfThenElse(unittest.TestCase):
         with self.assertRaises(jsonschema.exceptions.ValidationError):
             self._validate_DOCUMENT2(0, 2)
 
+
 if __name__ == "__main__":
     unittest.main()
-
-# vim:ts=4:sw=4:et:syn=python:
