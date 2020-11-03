@@ -1,0 +1,23 @@
+---
+- when: repository_hostname is defined
+  set_fact:
+    repository_hostname: "{{ repository_hostname }}"
+
+- when: custom_repository_url is defined
+  set_fact:
+    custom_repository_url: "{{ custom_repository_url }}"
+
+- when: custom_image_registry_address is defined
+  set_fact:
+    custom_image_registry_address: "{{ custom_image_registry_address }}"
+
+- include_tasks: repository_url.yml
+- include_tasks: image_registry_address.yml
+
+- debug:
+    msg:
+      LHS: "{{ preflight_facts }}"
+      RHS: "{{ want.preflight_facts }}"
+
+- assert:
+    that: preflight_facts == want.preflight_facts

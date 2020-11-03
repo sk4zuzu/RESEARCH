@@ -1,0 +1,18 @@
+---
+- hosts: all
+  gather_facts: true
+  tasks: []
+
+- hosts: kubernetes_master[0]
+  tasks:
+    - include_tasks: run_test.yml
+      vars:
+        custom_repository_url: "http://10.50.2.1:8080/epirepo"
+        want:
+          preflight_facts:
+            image_registry_address: u1a1:5000
+            image_registry_hostname: u1a1
+            repository_hostname: 10.50.2.1
+            repository_url: http://10.50.2.1:8080/epirepo
+            resolved_image_registry_hostname: u1a1
+            resolved_repository_hostname: 10.50.2.1

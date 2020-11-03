@@ -1,0 +1,44 @@
+---
+- set_fact:
+    local_repository_url: "http://{{ hostvars[groups.repository[0]].ansible_default_ipv4.address }}/epirepo"
+
+- set_fact:
+    repository_url: "{{ custom_repository_url | default(local_repository_url, true) }}"
+
+- set_fact:
+    ipv4_address_to_hostname_map: >-
+      {{ dict(ipv4_addresses | zip(groups.all)) }}
+  vars:
+    ipv4_addresses: >-
+      {{ groups.all | map('extract', hostvars, ['ansible_default_ipv4', 'address']) | list }}
+
+- set_fact:
+    registered_masters:
+      - "{{ groups.kubernetes_master[0] }}"
+
+- set_fact:
+    preflight_facts: >-
+      {{ preflight_facts | default({}) | combine(set_fact, recursive=true) }}
+  vars:
+    _use_repository_hostname: >-
+      {{ (registered_masters[0] is defined) and (hostvars[registered_masters[0]].repository_hostname is defined)
+                                            and (hostvars[registered_masters[0]].repository_hostname in ipv4_address_to_hostname_map) }}
+    _use_custom_repository_url: >-
+      {{ custom_repository_url | default(false) | ternary(true, false) }}
+
+    _reconstruct_repository_url: >-
+      {{ (not _use_custom_repository_url) and _use_repository_hostname }}
+
+    _repository_url: >-
+      {{ ( 'http://' ~ hostvars[registered_masters.0].repository_hostname ~ '/epirepo' ) if _reconstruct_repository_url else repository_url }}
+
+    _repository_hostname: >-
+      {{ _repository_url | urlsplit('hostname') }}
+
+    _resolved_repository_hostname: >-
+      {{ ipv4_address_to_hostname_map[_repository_hostname] | default(_repository_hostname) }}
+
+    set_fact:
+      repository_url: "{{ _repository_url }}"
+      repository_hostname: "{{ _repository_hostname }}"
+      resolved_repository_hostname: "{{ _resolved_repository_hostname }}"
