@@ -1,0 +1,22 @@
+---
+- hosts: servers:nodes
+  gather_facts: true
+  tags: [install,servers,nodes]
+  tasks: []
+
+- hosts: servers:nodes
+  tags: [install]
+  roles: [install]
+  serial: 2
+
+- hosts: servers
+  tags: [servers]
+  roles: [server]
+
+- hosts: nodes
+  tags: [nodes]
+  roles: [node]
+
+- hosts: servers[0]
+  tags: [nginx]
+  roles: [nginx]

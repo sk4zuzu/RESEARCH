@@ -1,0 +1,45 @@
+---
+- set_fact:
+    server_dir: "/opt/server-{{ inventory_hostname_short }}"
+
+- file:
+    path: "{{ server_dir }}/"
+    state: directory
+
+- copy:
+    dest: "{{ server_dir }}.hcl"
+    content: |
+      log_level = "DEBUG"
+      data_dir = "{{ server_dir }}"
+      server {
+        enabled = true
+        bootstrap_expect = {{ groups.servers | length }}
+        server_join {
+          retry_join = {{ _retry_join | to_json }}
+          retry_max = 3
+          retry_interval = "15s"
+        }
+      }
+  vars:
+    _retry_join: >-
+      {{ groups.servers | difference([inventory_hostname])
+                        | map('extract', hostvars, ['ansible_default_ipv4', 'address'])
+                        | list }}
+
+- copy:
+    dest: "/etc/systemd/system/nomad-server.service"
+    content: |
+      [Unit]
+      Wants=network-online.target
+      After=network-online.target
+      [Service]
+      ExecStart=/bin/sh -c "/usr/local/bin/nomad agent -config={{ server_dir }}.hcl"
+      Restart=always
+      RestartSec=10
+      [Install]
+      WantedBy=multi-user.target
+
+- systemd:
+    name: nomad-server
+    enabled: true
+    state: started

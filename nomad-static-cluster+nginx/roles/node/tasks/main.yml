@@ -1,0 +1,41 @@
+---
+- set_fact:
+    node_dir: "/opt/node-{{ inventory_hostname_short }}"
+
+- file:
+    path: "{{ node_dir }}/"
+    state: directory
+
+- copy:
+    dest: "{{ node_dir }}.hcl"
+    content: |
+      log_level = "DEBUG"
+      data_dir = "{{ node_dir }}"
+      name = "{{ inventory_hostname_short }}"
+      client {
+          enabled = true
+          servers = {{ _servers | to_json }}
+      }
+  vars:
+    _servers: >-
+      {{ groups.servers | map('extract', hostvars, ['ansible_default_ipv4', 'address'])
+                        | map('regex_replace', '$', ':4647')
+                        | list }}
+
+- copy:
+    dest: "/etc/systemd/system/nomad-node.service"
+    content: |
+      [Unit]
+      Wants=network-online.target
+      After=network-online.target
+      [Service]
+      ExecStart=/bin/sh -c "/usr/local/bin/nomad agent -config={{ node_dir }}.hcl"
+      Restart=always
+      RestartSec=10
+      [Install]
+      WantedBy=multi-user.target
+
+- systemd:
+    name: nomad-node
+    enabled: true
+    state: started
