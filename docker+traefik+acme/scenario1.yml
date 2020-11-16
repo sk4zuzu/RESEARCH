@@ -22,8 +22,10 @@ services:
       - test2.${DOMAIN}:${SUBNET_PREFIX}.4
     ports:
       - 80:80
+      - 443:443
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /letsencrypt/:/letsencrypt/
     command:
       - --log.level=DEBUG
       - --api.insecure=true
@@ -31,6 +33,11 @@ services:
       - --providers.docker.network=${COMPOSE_PROJECT_NAME}_default
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.myresolver.acme.httpchallenge=true
+      - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.myresolver.acme.email=sk4zuzu@tutanota.com
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
 
   nginx1:
     image: &nginx_image nginx:1.19-alpine
@@ -43,7 +50,8 @@ services:
     labels: &nginx_labels
       - traefik.enable=true
       - traefik.docker.network=${COMPOSE_PROJECT_NAME}_default
-      - traefik.http.routers.nginx.entrypoints=web
+      - traefik.http.routers.nginx.entrypoints=websecure
+      - traefik.http.routers.nginx.tls.certresolver=myresolver
       - traefik.http.routers.nginx.rule=HostRegexp(`{subdomain:[a-z0-9]+}.${DOMAIN}`)
       - traefik.http.services.nginx.loadbalancer.server.port=80
 
