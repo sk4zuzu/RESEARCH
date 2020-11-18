@@ -1,0 +1,7 @@
+/.terraform/
+/*.backup
+/*.tfstate
+/*.tfvars
+/*.lock.info
+/id_rsa
+/id_rsa.pub
