@@ -19,10 +19,8 @@ apt-get -q install -y --no-install-recommends \
 
 apt-get -q install -y --no-install-recommends \
     bash \
-    git \
     htop \
-    make \
-    mc \
-    vim
+    git make \
+    mc vim tmux
 
 sync
