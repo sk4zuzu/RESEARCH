@@ -1,0 +1,4 @@
+/kubeone
+/skopeo
+/hack/image-loader.sh
+*.tar

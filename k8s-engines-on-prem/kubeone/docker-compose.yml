@@ -1,0 +1,61 @@
+---
+version: "2"
+
+networks:
+  default:
+    ipam:
+      driver: default
+      config:
+        - subnet: ${SUBNET_PREFIX}.0/24
+          gateway: ${SUBNET_PREFIX}.1
+
+volumes:
+  registry_cache:
+
+services:
+  registry:
+    image: registry:2
+    networks:
+      default:
+        aliases: [registry.kubeone.lh]
+        ipv4_address: ${SUBNET_PREFIX}.2
+    volumes:
+      - registry_cache:/var/lib/registry/:rw
+    restart: "unless-stopped"
+
+  docker_upload:
+    depends_on: [registry]
+    image: docker:19.03
+    networks:
+      default:
+        aliases: [docker-upload.kubeone.lh]
+        ipv4_address: ${SUBNET_PREFIX}.4
+    environment:
+      OSTYPE: linux-gnu
+      TARGET_REGISTRY: ${SUBNET_PREFIX}.2:5000
+      K8S_VERSIONS: ${K8S_VERSIONS}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+      - ./files/:/files/:ro
+    restart: "no"
+    entrypoint: []
+    command:
+      - /bin/sh
+      - -ec
+      - >-
+        : INSTALL BASH, COREUTILS AND CURL;
+        apk --no-cache add bash coreutils curl;
+
+        : WAIT FOR REGISTRY TO BECOME AVAILABLE;
+        for RETRY in 9 8 7 6 5 4 3 2 1 0; do
+          if nc -zw1 registry.kubeone.lh 5000; then
+            break;
+          fi;
+          sleep 4;
+        done && [ "$${RETRY}" -gt 0 ];
+
+        : UPLOAD ALL IMAGES TO REGISTRY;
+        cd /files/hack/ && for VERSION in $${K8S_VERSIONS}; do
+          export KUBERNETES_VERSION=$${VERSION};
+          ./image-loader.sh;
+        done;

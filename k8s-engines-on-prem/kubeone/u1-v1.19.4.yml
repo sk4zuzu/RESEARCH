@@ -1,0 +1,55 @@
+apiVersion: kubeone.io/v1beta1
+kind: KubeOneCluster
+name: u1
+
+versions:
+  kubernetes: v1.19.4
+
+cloudProvider:
+  none: {}
+
+systemPackages:
+  configureRepositories: true
+
+registryConfiguration:
+  overwriteRegistry: 10.8.103.2:5000
+  insecureRegistry: true
+
+controlPlane:
+  hosts:
+    - publicAddress: 10.50.2.10
+      privateAddress: 10.50.2.10
+      sshUsername: ubuntu
+      sshAgentSocket: env:SSH_AUTH_SOCK
+      taints:
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+    - publicAddress: 10.50.2.11
+      privateAddress: 10.50.2.11
+      sshUsername: ubuntu
+      sshAgentSocket: env:SSH_AUTH_SOCK
+      taints:
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+    - publicAddress: 10.50.2.12
+      privateAddress: 10.50.2.12
+      sshUsername: ubuntu
+      sshAgentSocket: env:SSH_AUTH_SOCK
+      taints:
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+
+staticWorkers:
+  hosts:
+    - publicAddress: 10.50.2.20
+      privateAddress: 10.50.2.20
+      sshUsername: ubuntu
+      sshAgentSocket: env:SSH_AUTH_SOCK
+    - publicAddress: 10.50.2.21
+      privateAddress: 10.50.2.21
+      sshUsername: ubuntu
+      sshAgentSocket: env:SSH_AUTH_SOCK
+    - publicAddress: 10.50.2.22
+      privateAddress: 10.50.2.22
+      sshUsername: ubuntu
+      sshAgentSocket: env:SSH_AUTH_SOCK
