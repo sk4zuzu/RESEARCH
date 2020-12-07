@@ -1,0 +1,28 @@
+---
+- yum_repository:
+    name: docker-ce-stable
+    description: Docker CE Stable Repo
+    baseurl: https://download.docker.com/linux/centos/7/x86_64/stable
+    gpgcheck: false
+    state: present
+  register: result
+  until: result is success
+  retries: 8
+  delay: 4
+
+- yum:
+    update_cache: true
+    name:
+      - docker-ce-{{ docker.redhat.dockerce_version_yum }}
+      - docker-ce-cli-{{ docker.redhat.dockerce_version_yum }}
+      - containerd.io-{{ docker.redhat.containerdio_version_yum }}
+    state: present
+  register: result
+  until: result is success
+  retries: 8
+  delay: 4
+
+- user:
+    name: centos
+    groups: docker
+    append: true

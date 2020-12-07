@@ -1,0 +1,29 @@
+---
+- apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+    state: present
+  register: result
+  until: result is success
+  retries: 8
+  delay: 4
+
+- apt:
+    update_cache: true
+    name:
+      - docker-ce={{ docker.debian.dockerce_version_apt }}
+      - docker-ce-cli={{ docker.debian.dockerce_version_apt }}
+      - containerd.io={{ docker.debian.containerdio_version_apt }}
+    state: present
+  register: result
+  until: result is success
+  retries: 8
+  delay: 4
+
+- user:
+    name: ubuntu
+    groups: docker
+    append: true

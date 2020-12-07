@@ -1,0 +1,57 @@
+---
+version: "2"
+
+networks:
+  default:
+    ipam:
+      driver: default
+      config:
+        - subnet: ${SUBNET_PREFIX}.0/24
+          gateway: ${SUBNET_PREFIX}.1
+
+volumes:
+  registry_cache:
+
+services:
+  registry:
+    image: registry:2
+    networks:
+      default:
+        aliases: [registry.rke.lh]
+        ipv4_address: ${SUBNET_PREFIX}.2
+    volumes:
+      - registry_cache:/var/lib/registry/:rw
+    restart: "unless-stopped"
+
+  skopeo_upload:
+    depends_on: [registry]
+    image: alpine:3
+    networks:
+      default:
+        aliases: [skopeo-upload.rke.lh]
+        ipv4_address: ${SUBNET_PREFIX}.4
+    volumes:
+      - ./files/:/files/:ro
+    restart: "no"
+    entrypoint: []
+    command:
+      - /bin/sh
+      - -ec
+      - >-
+        : WAIT FOR REGISTRY TO BECOME AVAILABLE;
+        for RETRY in 9 8 7 6 5 4 3 2 1 0; do
+          if nc -zw1 registry.rke.lh 5000; then
+            break;
+          fi;
+          sleep 4;
+        done && [ "$${RETRY}" -gt 0 ];
+
+        : UPLOAD ALL IMAGES TO REGISTRY;
+        cd /files/ && find * -type f -name "*..*.tar" | while read FILE; do
+          IMAGE=$${FILE//../:};
+          IMAGE=$${IMAGE%.tar};
+          : UPLOAD CURRENT IMAGE;
+          ./skopeo --quiet --insecure-policy copy --dest-tls-verify=false \
+            "docker-archive:///files/$${FILE}" \
+            "docker://registry.rke.lh:5000/$${IMAGE}";
+        done;

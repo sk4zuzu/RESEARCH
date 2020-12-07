@@ -1,0 +1,8 @@
+---
+- shell: |
+    xargs --no-run-if-empty -n1 sysctl -w
+  args:
+    stdin: >-
+      {{ sysctl.items() | map('join', '=') | join(_nl) }}
+  vars:
+    _nl: "\n"

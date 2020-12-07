@@ -1,0 +1,7 @@
+---
+- hosts: m:n
+  gather_facts: true
+  roles:
+    - modprobe
+    - sysctl
+    - docker

@@ -1,0 +1,31 @@
+---
+cluster_name: u1
+kubernetes_version: v1.19.4-rancher1-1
+
+ssh_agent_auth: true
+
+nodes:
+  - &m1
+    address: 10.50.2.10
+    user: ubuntu
+    role: [etcd, controlplane]
+  - <<: *m1
+    address: 10.50.2.11
+  - <<: *m1
+    address: 10.50.2.12
+
+  - &n1
+    address: 10.50.2.20
+    user: ubuntu
+    role: [worker]
+  - <<: *n1
+    address: 10.50.2.21
+  - <<: *n1
+    address: 10.50.2.22
+
+network:
+  plugin: calico
+
+private_registries:
+  - url: 10.8.101.2:5000
+    is_default: true

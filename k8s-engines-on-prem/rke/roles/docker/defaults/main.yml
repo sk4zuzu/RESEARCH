@@ -1,0 +1,10 @@
+---
+docker:
+  insecure_registries:
+    - "10.8.101.2:5000"
+  debian:
+    dockerce_version_apt: "5:19.03.13~3-0~ubuntu-bionic"
+    containerdio_version_apt: "1.3.7-1"
+  redhat:
+    dockerce_version_yum: "19.03.14-3.el7"
+    containerdio_version_yum: "1.3.9-3.1.el7"

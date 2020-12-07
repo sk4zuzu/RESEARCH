@@ -1,0 +1,8 @@
+---
+- shell: |
+    xargs --no-run-if-empty -n1 modprobe
+  args:
+    stdin: >-
+      {{ modprobe | join(_nl) }}
+  vars:
+    _nl: "\n"

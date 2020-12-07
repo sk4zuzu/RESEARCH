@@ -1,0 +1,33 @@
+---
+cluster_name: au1
+kubernetes_version: v1.18.12-rancher1-1
+
+ssh_agent_auth: true
+
+nodes:
+  - &m1
+    user: ubuntu
+    role: [etcd, controlplane]
+    "address": "104.45.86.4"
+    "internal_address": "10.0.240.8"
+  - <<: *m1
+    "address": "23.102.48.17"
+    "internal_address": "10.0.240.6"
+  - <<: *m1
+    "address": "104.45.84.172"
+    "internal_address": "10.0.240.4"
+
+  - &n1
+    user: ubuntu
+    role: [worker]
+    "address": "23.102.22.29"
+    "internal_address": "10.0.240.7"
+  - <<: *n1
+    "address": "137.135.244.150"
+    "internal_address": "10.0.240.5"
+  - <<: *n1
+    "address": "23.102.23.168"
+    "internal_address": "10.0.240.9"
+
+network:
+  plugin: calico

@@ -1,0 +1,23 @@
+---
+- include_tasks: "{{ ansible_os_family | lower }}.yml"
+
+- file:
+    path: /etc/docker/
+    state: directory
+
+- copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "insecure-registries": {{ docker.insecure_registries | to_json }},
+        "exec-opts": ["native.cgroupdriver=systemd"],
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "100m"
+        },
+        "storage-driver": "overlay2"
+      }
+
+- systemd:
+    name: docker
+    state: reloaded
