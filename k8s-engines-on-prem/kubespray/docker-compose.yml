@@ -1,0 +1,68 @@
+---
+version: "2"
+
+networks:
+  default:
+    ipam:
+      driver: default
+      config:
+        - subnet: ${SUBNET_PREFIX}.0/24
+          gateway: ${SUBNET_PREFIX}.1
+
+volumes:
+  registry_cache:
+
+services:
+  httpd:
+    image: httpd:2.4
+    networks:
+      default:
+        aliases: [httpd.kubespray.lh]
+        ipv4_address: ${SUBNET_PREFIX}.2
+    volumes:
+      - ./files/kubespray_cache/:/usr/local/apache2/htdocs/:ro
+    restart: "unless-stopped"
+
+  registry:
+    image: registry:2
+    networks:
+      default:
+        aliases: [registry.kubespray.lh]
+        ipv4_address: ${SUBNET_PREFIX}.4
+    volumes:
+      - registry_cache:/var/lib/registry/:rw
+    restart: "unless-stopped"
+
+  skopeo_upload:
+    depends_on: [registry]
+    image: alpine:3
+    networks:
+      default:
+        aliases: [skopeo-upload.kubespray.lh]
+        ipv4_address: ${SUBNET_PREFIX}.8
+    volumes:
+      - ./files/:/files/:ro
+    restart: "no"
+    entrypoint: []
+    command:
+      - /bin/sh
+      - -ec
+      - >-
+        : WAIT FOR REGISTRY TO BECOME AVAILABLE;
+        for RETRY in 9 8 7 6 5 4 3 2 1 0; do
+          if nc -zw1 registry.kubespray.lh 5000; then
+            break;
+          fi;
+          sleep 4;
+        done && [ "$${RETRY}" -gt 0 ];
+
+        : UPLOAD ALL IMAGES TO REGISTRY;
+        cd /files/kubespray_cache/images/ && find * -type f -name "*.tar" | while read FILE; do
+          : RECONSTRUCT IMAGE URL;
+          echo "$${FILE}" | awk -vFS=_ -vRS=".tar\n" -vOFS=/ '{$$0=substr($$0,index($$0,$$2))} {$$(NF-1)=$$(NF-1)":"$$NF} {NF--} 1' | while read IMAGE; do
+            : UPLOAD CURRENT IMAGE;
+            /files/skopeo --quiet --insecure-policy copy --dest-tls-verify=false \
+              "docker-archive:///files/kubespray_cache/images/$${FILE}" \
+              "docker://registry.kubespray.lh:5000/$${IMAGE}";
+          done;
+        done;

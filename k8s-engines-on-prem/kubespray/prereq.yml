@@ -1,0 +1,5 @@
+---
+- hosts: m:n
+  gather_facts: true
+  roles:
+    - fixes

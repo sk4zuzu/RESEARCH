@@ -1,0 +1,7 @@
+---
+- file:
+    path: /etc/kubernetes/
+    state: directory
+    owner: root
+    group: root
+    mode: ug=rwx,o=rx
