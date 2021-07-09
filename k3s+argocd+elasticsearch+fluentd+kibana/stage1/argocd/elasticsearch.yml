@@ -1,0 +1,30 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: elasticsearch
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: elasticsearch
+  source:
+    repoURL: https://helm.elastic.co/
+    chart: elasticsearch
+    targetRevision: 7.13.2
+    helm:
+      values: |
+        clusterName: elasticsearch
+        replicas: 1
+        ingress:
+          enabled: true
+          hosts:
+            - host: elasticsearch.elasticsearch.svc
+              paths:
+                - path: /
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: true

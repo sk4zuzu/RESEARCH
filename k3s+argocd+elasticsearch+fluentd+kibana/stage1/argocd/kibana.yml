@@ -1,0 +1,30 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: kibana
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kibana
+  source:
+    repoURL: https://helm.elastic.co/
+    chart: kibana
+    targetRevision: 7.13.2
+    helm:
+      values: |
+        elasticsearchHosts: http://elasticsearch-master.elasticsearch.svc:9200
+        replicas: 1
+        ingress:
+          enabled: true
+          hosts:
+            - host: kibana.kibana.svc
+              paths:
+                - path: /
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: true

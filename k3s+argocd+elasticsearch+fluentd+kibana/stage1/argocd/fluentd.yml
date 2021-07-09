@@ -1,0 +1,25 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: fluentd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: fluentd
+  source:
+    repoURL: https://kokuwaio.github.io/helm-charts/
+    chart: fluentd-elasticsearch
+    targetRevision: 11.13.0
+    helm:
+      values: |
+        elasticsearch:
+          hosts:
+            - elasticsearch-master.elasticsearch.svc:9200
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: true
