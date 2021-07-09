@@ -3,4 +3,4 @@
 	url = https://github.com/sk4zuzu/kubelo.git
 [submodule "kubelo+AWS/kubelo"]
 	path = kubelo+AWS/kubelo
-	url = git@github.com:sk4zuzu/kubelo.git
+	url = https://github.com/sk4zuzu/kubelo.git
