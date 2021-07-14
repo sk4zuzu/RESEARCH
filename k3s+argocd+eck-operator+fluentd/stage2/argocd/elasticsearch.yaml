@@ -1,0 +1,68 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: es-roles-secret
+stringData:
+  roles.yml: |-
+    fluentd:
+      cluster: ["monitor"]
+      indices:
+        - names: ["*"]
+          privileges: ["write", "create", "delete", "create_index"]
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: es-filerealm-secret
+stringData:
+  users: |-
+    fluentd:$2a$10$RXCGxnXqErNqwE5vEmJtrOR6/fa3w9TK/vwTRlinbAiPeD5oQwcHi
+  users_roles: |-
+    fluentd:fluentd
+---
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elasticsearch
+spec:
+  version: 7.13.2
+  auth:
+    roles:
+      - secretName: es-roles-secret
+    fileRealm:
+      - secretName: es-filerealm-secret
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: false
+        subjectAltNames:
+          - dns: elasticsearch-es-http.eck.svc
+          - dns: elasticsearch-es-http.eck.svc.cluster.local
+  nodeSets:
+    - name: master-nodes
+      count: 1
+      config:
+        node.roles: ["master"]
+      volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 10Gi
+    - name: data-nodes
+      count: 1
+      config:
+        node.roles: ["data", "ingest", "transform"]
+      volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 20Gi

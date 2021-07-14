@@ -1,0 +1,30 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  namespace: argocd
+  name: fluentd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: eck
+  source:
+    repoURL: https://kokuwaio.github.io/helm-charts/
+    chart: fluentd-elasticsearch
+    targetRevision: 11.13.0
+    helm:
+      values: |
+        elasticsearch:
+          hosts: ["elasticsearch-es-http.eck.svc:9200"]
+          scheme: https
+          sslVerify: false
+          auth:
+            enabled: true
+            user: fluentd
+            password: fluentd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: true
