@@ -14,6 +14,15 @@ resource "helm_release" "vault" {
       server = {
         enabled = true
         dev     = { enabled = true }
+        ingress = {
+          enabled = true
+          hosts = [
+            {
+              host  = "vault.vault.svc"
+              paths = ["/"]
+            },
+          ]
+        }
       }
       injector = {
         enabled = false
