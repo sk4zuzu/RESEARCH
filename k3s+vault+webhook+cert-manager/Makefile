@@ -64,6 +64,12 @@ stage1: $(SELF)/stage1/
 stage2: $(SELF)/stage2/
 	cd $< && terraform $(COMMAND) $(AUTO_APPROVE)
 
+.PHONY: clean
+
+clean:
+	-rm -rf $(SELF)/stage*/.terraform/
+	-rm -f $(SELF)/stage*/terraform.tfstate*
+
 .PHONY: sign1
 
 sign1: $(SELF)/.cache/$(FQDN).csr $(SELF)/.cache/$(FQDN).csr.json

@@ -7,7 +7,7 @@ output "vault" {
     namespace = kubernetes_namespace.vault.metadata[0].name
     name      = "vault"
     token     = "root"
-    address   = "http://${join(":", [
+    address = "http://${join(":", [
       data.kubernetes_service.vault.spec[0].cluster_ip,
       data.kubernetes_service.vault.spec[0].port[0].port,
     ])}"

@@ -5,15 +5,15 @@ resource "vault_pki_secret_backend" "certmanager" {
 }
 
 resource "vault_pki_secret_backend_root_cert" "certmanager" {
-  backend               = vault_pki_secret_backend.certmanager.path
-  type                  = "internal"
-  common_name           = "certmanager"
-  ttl                   = "${10 * (365 * 24)}h" # 10 years
-  format                = "pem"
-  private_key_format    = "der"
-  key_type              = "rsa"
-  key_bits              = 2048
-  exclude_cn_from_sans  = true
+  backend              = vault_pki_secret_backend.certmanager.path
+  type                 = "internal"
+  common_name          = "certmanager"
+  ttl                  = "${10 * (365 * 24)}h" # 10 years
+  format               = "pem"
+  private_key_format   = "der"
+  key_type             = "rsa"
+  key_bits             = 2048
+  exclude_cn_from_sans = true
 }
 
 resource "vault_pki_secret_backend_role" "certmanager" {

@@ -1,8 +1,3 @@
-resource "vault_generic_secret" "nginx" {
-  path      = "secret/kubernetes/asd"
-  data_json = jsonencode({ asd = "lyk" })
-}
-
 resource "kubernetes_namespace" "nginx" {
   metadata {
     name = "nginx"
@@ -30,25 +25,33 @@ resource "kubernetes_deployment" "nginx" {
         labels = {
           app = "nginx"
         }
-        annotations = {
-          "vault.security.banzaicloud.io/vault-addr"        = "http://vault.vault.svc:8200"
-          "vault.security.banzaicloud.io/vault-skip-verify" = "true"
-          "vault.security.banzaicloud.io/vault-path"        = "kubernetes"
-          "vault.security.banzaicloud.io/vault-role"        = "kubernetes"
-        }
       }
       spec {
         container {
           image = "nginx:alpine"
           name  = "nginx"
           env {
-            name  = "ASD"
-            value = "vault:secret/data/kubernetes/asd#asd"
+            name = "SEC1_AAA"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.secrets["sec1"].metadata[0].name
+                key  = "aaa"
+              }
+            }
+          }
+          env {
+            name = "SEC1_BBB"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.secrets["sec1"].metadata[0].name
+                key  = "bbb"
+              }
+            }
           }
           command = [
             "sh",
             "-c",
-            "echo $ASD > /usr/share/nginx/html/index.html && exec nginx -g 'daemon off;'",
+            "echo $SEC1_AAA $SEC1_BBB > /usr/share/nginx/html/index.html && exec nginx -g 'daemon off;'",
           ]
         }
       }
