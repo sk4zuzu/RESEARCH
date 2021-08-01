@@ -1,0 +1,7 @@
+auth:
+  enabled: true
+  sentinel: false
+  password: "asd123"
+
+sentinel:
+  enabled: true
