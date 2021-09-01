@@ -1,0 +1,24 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx2
+      service: nginx2
+  template:
+    metadata:
+      labels:
+        app: nginx2
+        service: nginx2
+      annotations:
+        consul.hashicorp.com/connect-inject: "true"
+    spec:
+      containers:
+        - name: nginx2
+          image: nginx:alpine
+          ports:
+            - containerPort: 80

@@ -1,0 +1,22 @@
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceIntentions
+metadata:
+  name: nginx1-to-nginx2
+spec:
+  destination:
+    name: nginx2
+  sources:
+    - name: nginx1
+      action: allow
+#---
+#apiVersion: consul.hashicorp.com/v1alpha1
+#kind: ServiceIntentions
+#metadata:
+#  name: nginx2-to-nginx1
+#spec:
+#  destination:
+#    name: nginx1
+#  sources:
+#    - name: nginx2
+#      action: allow
