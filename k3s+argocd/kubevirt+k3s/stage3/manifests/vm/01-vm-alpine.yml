@@ -1,0 +1,56 @@
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  labels:
+    kubevirt.io/vm: vm-alpine
+  name: vm-alpine
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: vm-alpine
+    spec:
+      domain:
+        devices:
+          disks:
+          - disk:
+              bus: virtio
+            name: datavolume
+          - disk:
+              bus: virtio
+            name: cloudinitdisk
+          interfaces:
+          - name: bridge-network
+            bridge: {}
+        resources:
+          requests:
+            memory: 128Mi
+      networks:
+      - name: bridge-network
+        multus:
+          networkName: bridge-network
+      terminationGracePeriodSeconds: 0
+      volumes:
+      - dataVolume:
+          name: alpine-nocloud
+        name: datavolume
+      - cloudInitNoCloud:
+          userData: |
+            #!/bin/sh
+        name: cloudinitdisk
+  dataVolumeTemplates:
+  - metadata:
+      name: alpine-nocloud
+    spec:
+      pvc:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 8Gi
+      source:
+        pvc:
+          namespace: cdi
+          name: alpine-nocloud
