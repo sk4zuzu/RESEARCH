@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s1
+spec:
+  selector:
+    matchLabels:
+      run: s1
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        run: s1
+      annotations:
+        consul.hashicorp.com/connect-inject: "true"
+    spec:
+      containers:
+      - name: s
+        image: sk4zuzu/csmr-s1
+        ports:
+        - containerPort: 8000
+        env:
+        - name: URL
+          value: http://s2/200
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s2
+spec:
+  selector:
+    matchLabels:
+      run: s2
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        run: s2
+      annotations:
+        consul.hashicorp.com/connect-inject: "true"
+    spec:
+      containers:
+      - name: s
+        image: sk4zuzu/csmr-s2
+        ports:
+        - containerPort: 8000
+        env:
+        - name: URL
+          value: http://s1/200
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: s1
+spec:
+  selector:
+    run: s1
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: s2
+spec:
+  selector:
+    run: s2
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceIntentions
+metadata:
+  name: s1
+spec:
+  sources:
+  - name: s2
+    action: allow
+  destination:
+    name: s1
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceIntentions
+metadata:
+  name: s2
+spec:
+  sources:
+  - name: s1
+    action: allow
+  destination:
+    name: s2
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceRouter
+metadata:
+  name: s1
+spec:
+  routes:
+  - destination:
+      numRetries: 2
+      retryOnConnectFailure: true
+      retryOnStatusCodes: [502, 503, 504]
+---
+apiVersion: consul.hashicorp.com/v1alpha1
+kind: ServiceRouter
+metadata:
+  name: s2
+spec:
+  routes:
+  - destination:
+      numRetries: 2
+      retryOnConnectFailure: true
+      retryOnStatusCodes: [502, 503, 504]

@@ -1,0 +1,11 @@
+---
+test_name: endpoints
+stages:
+- name: Check http://127.0.0.1:8000/
+  request:
+    url: http://127.0.0.1:8000/
+    method: GET
+  response:
+    status_code: 200
+    json:
+      status: 200

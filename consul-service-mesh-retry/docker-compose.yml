@@ -1,0 +1,36 @@
+version: "2"
+
+networks:
+  default:
+    ipam:
+      driver: default
+      config:
+      - subnet: ${SUBNET_PREFIX}.0/24
+        gateway: ${SUBNET_PREFIX}.1
+
+services:
+  s1:
+    networks:
+      default:
+        aliases: [s1.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.4
+    ports:
+    - 8000:8000
+    image: sk4zuzu/${COMPOSE_PROJECT_NAME}-s1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      URL: http://s2.poc.svc:8000/200
+
+  s2:
+    networks:
+      default:
+        aliases: [s2.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.8
+    image: sk4zuzu/${COMPOSE_PROJECT_NAME}-s2
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      URL: http://s1.poc.svc:8000/200
