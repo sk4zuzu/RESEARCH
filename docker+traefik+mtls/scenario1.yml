@@ -1,0 +1,52 @@
+---
+version: "2"
+
+networks:
+  default:
+    ipam:
+      driver: default
+      config:
+        - subnet: ${SUBNET_PREFIX}.0/24
+          gateway: ${SUBNET_PREFIX}.1
+
+services:
+  traefik1:
+    image: traefik1-mtls
+    build:
+      context: ./traefik1/
+      dockerfile: ../Dockerfile
+    networks:
+      default:
+        aliases: [s1.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.4
+    command:
+      - --log.level=DEBUG
+      - --accesslog=true
+      - --api.insecure=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --providers.file.directory=/file/
+
+  traefik2:
+    image: traefik2-mtls
+    build:
+      context: ./traefik2/
+      dockerfile: ../Dockerfile
+    networks:
+      default:
+        aliases: [s1.poc.lh]
+        ipv4_address: ${SUBNET_PREFIX}.8
+    command:
+      - --log.level=DEBUG
+      - --accesslog=true
+      - --api.insecure=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --providers.file.directory=/file/
+
+  nginx1:
+    image: nginx:1.21-alpine
+    networks:
+      default:
+        aliases: [nginx1.poc.lh]
+        ipv4_address: ${SUBNET_PREFIX}.16

@@ -1,0 +1,35 @@
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/wildcard.poc.lh.cert.pem
+        keyFile: /certs/wildcard.poc.lh.key.pem
+  certificates:
+  - certFile: /certs/s1.poc.lh.cert.pem
+    keyFile: /certs/s1.poc.lh.key.pem
+  options:
+    require-mtls:
+      clientAuth:
+        caFiles: [/certs/poc.lh.cacert.pem]
+        clientAuthType: RequireAndVerifyClientCert
+
+http:
+  routers:
+    s1_poc_svc:
+      entryPoints: [websecure]
+      rule: Host(`s1.poc.svc`)
+      service: s1_poc_lh
+      tls:
+        options: require-mtls
+    s1_poc_lh:
+      entryPoints: [websecure]
+      rule: Host(`s1.poc.lh`)
+      service: s1_poc_lh
+      tls:
+        options: require-mtls
+
+  services:
+    s1_poc_lh:
+      loadBalancer:
+        servers:
+        - url: http://nginx1.poc.lh

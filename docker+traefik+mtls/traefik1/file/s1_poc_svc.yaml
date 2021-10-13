@@ -1,0 +1,40 @@
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/wildcard.poc.svc.cert.pem
+        keyFile: /certs/wildcard.poc.svc.key.pem
+  certificates:
+  - certFile: /certs/s1.poc.svc.cert.pem
+    keyFile: /certs/s1.poc.svc.key.pem
+  options:
+    require-mtls:
+      clientAuth:
+        caFiles: [/certs/poc.svc.cacert.pem]
+        clientAuthType: RequireAndVerifyClientCert
+
+http:
+  routers:
+    s1_poc_svc:
+      entryPoints: [websecure]
+      rule: Host(`s1.poc.svc`)
+      service: s1_poc_svc
+      tls:
+        options: require-mtls
+
+  serversTransports:
+    s1_poc_svc:
+      rootCAs: [/certs/poc.lh.cacert.pem]
+      certificates:
+      - certFile: /certs/c1.poc.lh.cert.pem
+        keyFile: /certs/c1.poc.lh.key.pem
+      serverName: s1.poc.lh
+      #serverName: incorrect.poc.lh # this causes 421
+
+  services:
+    s1_poc_svc:
+      loadBalancer:
+        passHostHeader: true
+        serversTransport: s1_poc_svc
+        servers:
+        - url: https://10.12.34.8/

@@ -1,0 +1,26 @@
+http:
+  middlewares:
+    prod_idrix_eu:
+      stripPrefix:
+        prefixes: [/prod.idrix.eu/]
+
+  routers:
+    prod_idrix_eu:
+      entryPoints: [web]
+      rule: PathPrefix(`/prod.idrix.eu/`)
+      middlewares: [prod_idrix_eu]
+      service: prod_idrix_eu
+
+  serversTransports:
+    prod_idrix_eu:
+      certificates:
+      - certFile: /certs/c1.poc.svc.cert.pem
+        keyFile: /certs/c1.poc.svc.key.pem
+
+  services:
+    prod_idrix_eu:
+      loadBalancer:
+        passHostHeader: false
+        serversTransport: prod_idrix_eu
+        servers:
+        - url: https://prod.idrix.eu/secure/
