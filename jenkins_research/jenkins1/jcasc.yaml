@@ -1,0 +1,89 @@
+---
+unclassified:
+  location:
+    url: http://jenkins1.poc.svc:8080/
+
+credentials:
+  system:
+    domainCredentials:
+    - credentials:
+      - basicSSHUserPrivateKey:
+          id: jenkins
+          scope: GLOBAL
+          username: jenkins
+          privateKeySource:
+            directEntry:
+              privateKey: ${readFile:/run/secrets/id_rsa}
+
+security:
+  queueItemAuthenticator:
+    authenticators:
+    - global:
+        strategy: triggeringUsersAuthorizationStrategy
+
+jenkins:
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+      - id: jenkins
+        password: asd
+  authorizationStrategy:
+    globalMatrix:
+      permissions:
+      - Overall/Administer:jenkins
+      - Overall/Read:authenticated
+  remotingSecurity:
+    enabled: false
+  agentProtocols: [JNLP4-connect]
+  nodes:
+  - permanent:
+      name: agent1
+      labelString: asd
+      launcher:
+        ssh:
+          host: agent1.poc.svc
+          port: 22
+          credentialsId: jenkins
+          sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
+      remoteFS: /home/jenkins
+      mode: EXCLUSIVE
+      numExecutors: 1
+      retentionStrategy: always
+  - permanent:
+      name: agent2
+      labelString: asd
+      launcher:
+        ssh:
+          host: agent2.poc.svc
+          port: 22
+          credentialsId: jenkins
+          sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
+      remoteFS: /home/jenkins
+      mode: EXCLUSIVE
+      numExecutors: 1
+      retentionStrategy: always
+
+jobs:
+- script: |
+    job('uname') {
+      label('asd')
+      steps {
+        shell('uname -a')
+      }
+    }
+- script: |
+    pipelineJob('jenkins1') {
+      definition {
+        cpsScm {
+          scm {
+            git {
+              remote { url('https://github.com/sk4zuzu/RESEARCH.git') }
+              branches('jenkins')
+              scriptPath('jenkins_research/jenkins1/Jenkinsfile')
+              extensions { }
+            }
+          }
+        }
+      }
+    }
