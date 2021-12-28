@@ -39,7 +39,7 @@ jenkins:
   nodes:
   - permanent:
       name: agent1
-      labelString: asd
+      labelString: agent1
       launcher:
         ssh:
           host: agent1.poc.svc
@@ -52,7 +52,7 @@ jenkins:
       retentionStrategy: always
   - permanent:
       name: agent2
-      labelString: asd
+      labelString: agent2
       launcher:
         ssh:
           host: agent2.poc.svc
@@ -67,7 +67,7 @@ jenkins:
 jobs:
 - script: |
     job('uname') {
-      label('asd')
+      label('agent1 || agent2')
       steps {
         shell('uname -a')
       }
