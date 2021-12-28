@@ -63,27 +63,3 @@ jenkins:
       mode: EXCLUSIVE
       numExecutors: 1
       retentionStrategy: always
-
-jobs:
-- script: |
-    job('uname') {
-      label('agent1 || agent2')
-      steps {
-        shell('uname -a')
-      }
-    }
-- script: |
-    pipelineJob('jenkins1') {
-      definition {
-        cpsScm {
-          scm {
-            git {
-              remote { url('https://github.com/sk4zuzu/RESEARCH.git') }
-              branches('jenkins')
-              scriptPath('jenkins_research/jenkins1/Jenkinsfile')
-              extensions { }
-            }
-          }
-        }
-      }
-    }
