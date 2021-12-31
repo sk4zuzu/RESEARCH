@@ -31,3 +31,11 @@ jenkins1 agent1 agent2: $(SELF)/scenario1.yml
 
 down: $(SELF)/scenario1.yml
 	-docker-compose -f $< down --volumes
+
+.PHONY: cli1
+
+cli1: $(SELF)/jenkins-cli1.jar
+	java -jar $< -s http://jenkins1.poc.svc:8080/ -auth jenkins:asd -webSocket groovysh
+
+$(SELF)/jenkins-cli1.jar:
+	curl -fsSLo $@ http://jenkins1.poc.svc:8080/jnlpJars/jenkins-cli.jar
