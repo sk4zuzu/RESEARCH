@@ -1,0 +1,8 @@
+authorize-project:latest
+configuration-as-code:latest
+git:latest
+job-dsl:latest
+matrix-auth:latest
+ssh-slaves:latest
+strict-crumb-issuer:latest
+workflow-aggregator:latest

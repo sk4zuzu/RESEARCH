@@ -1,0 +1,11 @@
+#!/usr/bin/env groovy
+
+def random = new Random()
+def labels = ['agent1', 'agent2']
+def label  = labels[ random.nextInt(labels.size()) ]
+
+node(label) {
+    stage('asd') {
+        sh 'uname -a'
+    }
+}
