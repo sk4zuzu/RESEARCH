@@ -39,7 +39,7 @@ jenkins:
   nodes:
   - permanent:
       name: agent1
-      labelString: agent1
+      labelString: "agent1 agents"
       launcher:
         ssh:
           host: agent1.poc.svc
@@ -52,7 +52,7 @@ jenkins:
       retentionStrategy: always
   - permanent:
       name: agent2
-      labelString: agent2
+      labelString: "agent2 agents"
       launcher:
         ssh:
           host: agent2.poc.svc

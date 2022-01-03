@@ -3,5 +3,13 @@
 node('agent1 || agent2') {
     stage('asd') {
         sh 'uname -a'
+        print "NODE_NAME = ${env.NODE_NAME}"
+    }
+}
+
+node('agents') {
+    stage('dsa') {
+        sh 'uname -a'
+        print "NODE_NAME = ${env.NODE_NAME}"
     }
 }
