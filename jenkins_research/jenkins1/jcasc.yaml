@@ -48,7 +48,7 @@ jenkins:
           sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
       remoteFS: /home/jenkins
       mode: EXCLUSIVE
-      numExecutors: 1
+      numExecutors: 4
       retentionStrategy: always
   - permanent:
       name: agent2
@@ -61,5 +61,5 @@ jenkins:
           sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
       remoteFS: /home/jenkins
       mode: EXCLUSIVE
-      numExecutors: 1
+      numExecutors: 4
       retentionStrategy: always

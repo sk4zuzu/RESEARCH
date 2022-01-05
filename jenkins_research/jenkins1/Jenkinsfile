@@ -8,8 +8,15 @@ node('agent1 || agent2') {
 }
 
 node('agents') {
-    stage('dsa') {
+    stage('s1') {
         sh 'uname -a'
-        print "NODE_NAME = ${env.NODE_NAME}"
+        print "s1: NODE_NAME = ${env.NODE_NAME}"
+
+        node(env.NODE_NAME) {
+            stage('s2') {
+                sh 'uname -a'
+                print "s2: NODE_NAME = ${env.NODE_NAME}"
+            }
+        }
     }
 }
