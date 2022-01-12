@@ -7,15 +7,19 @@ node('agent1 || agent2') {
     }
 }
 
+def JOBS = [ 'job1', 'job2', 'job3' ]
+
 node('agents') {
     stage('s1') {
         sh 'uname -a'
         print "s1: NODE_NAME = ${env.NODE_NAME}"
 
-        node('agents') {
-            stage('s2') {
-                sh 'uname -a'
-                print "s2: NODE_NAME = ${env.NODE_NAME}"
+        JOBS.each { job ->
+            node('agents') {
+                stage(job) {
+                    sh 'uname -a'
+                    print "${job}: NODE_NAME = ${env.NODE_NAME}"
+                }
             }
         }
     }
