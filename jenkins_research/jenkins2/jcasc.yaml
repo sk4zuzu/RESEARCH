@@ -28,11 +28,11 @@ jenkins:
       users:
       - id: jenkins
         password: asd
-  authorizationStrategy:
-    globalMatrix:
-      permissions:
-      - Overall/Administer:jenkins
-      - Overall/Read:authenticated
+  #authorizationStrategy:
+  #  globalMatrix:
+  #    permissions:
+  #    - Overall/Administer:jenkins
+  #    - Overall/Read:authenticated
   remotingSecurity:
     enabled: false
   agentProtocols: [JNLP4-connect]
