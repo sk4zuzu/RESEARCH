@@ -1,46 +1,9 @@
 ---
 version: "2"
 
-networks:
-  default:
-    ipam:
-      driver: default
-      config:
-      - subnet: ${SUBNET_PREFIX}.0/24
-        gateway: ${SUBNET_PREFIX}.1
-
-secrets:
-  id_rsa:
-    file: ./id_rsa
-
 services:
-  jenkins2:
+  jenkins:
     image: jenkins2
     build:
       context: ./jenkins2/
       dockerfile: Dockerfile
-    secrets: [id_rsa]
-    networks:
-      default:
-        aliases: [jenkins2.poc.svc]
-        ipv4_address: ${SUBNET_PREFIX}.2
-  agent1:
-    image: agent1
-    build:
-      context: ./agent1/
-      dockerfile: Dockerfile
-    environment: [JENKINS_AGENT_SSH_PUBKEY]
-    networks:
-      default:
-        aliases: [agent1.poc.svc]
-        ipv4_address: ${SUBNET_PREFIX}.4
-  agent2:
-    image: agent2
-    build:
-      context: ./agent2/
-      dockerfile: Dockerfile
-    environment: [JENKINS_AGENT_SSH_PUBKEY]
-    networks:
-      default:
-        aliases: [agent2.poc.svc]
-        ipv4_address: ${SUBNET_PREFIX}.8

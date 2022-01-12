@@ -1,7 +1,7 @@
 ---
 unclassified:
   location:
-    url: http://jenkins1.poc.svc:8080/
+    url: http://jenkins.poc.svc:8080/
 
 credentials:
   system:
