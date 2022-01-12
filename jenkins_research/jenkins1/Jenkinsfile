@@ -12,7 +12,7 @@ node('agents') {
         sh 'uname -a'
         print "s1: NODE_NAME = ${env.NODE_NAME}"
 
-        node(env.NODE_NAME) {
+        node('agents') {
             stage('s2') {
                 sh 'uname -a'
                 print "s2: NODE_NAME = ${env.NODE_NAME}"
