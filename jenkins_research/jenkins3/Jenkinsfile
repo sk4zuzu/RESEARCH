@@ -1,0 +1,38 @@
+#!/usr/bin/env groovy
+
+def distribute_jobs(label, jobs) {
+    def labels = nodesByLabel(label)
+
+    def labeled_jobs = jobs
+        .collate(labels.size())
+        .inject([]) { acc, it -> acc + [it, labels].transpose().flatten().collate(2) }
+
+    labeled_jobs
+}
+
+def jobs = [
+    'job1',
+    'job2',
+    'job3',
+    'job4',
+    'job5',
+    'job6',
+    'job7',
+    'job8',
+]
+
+def builders = [:]
+for (it in distribute_jobs('agents', jobs)) {
+    def job = it[0]
+    def label = it[1]
+    builders[job] = {
+        node(label) {
+            sh 'uname -a'
+            println "${job}: NODE_NAME = ${env.NODE_NAME}"
+        }
+    }
+}
+
+throttle(['throttle_me_this']) {
+    parallel builders
+}

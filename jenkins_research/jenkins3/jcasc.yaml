@@ -1,0 +1,73 @@
+---
+unclassified:
+  location:
+    url: http://jenkins.poc.svc:8080/
+  throttleJobProperty:
+    categories:
+    - categoryName: throttle_me_this
+      maxConcurrentTotal: 8
+      maxConcurrentPerNode: 4
+      nodeLabeledPairs:
+      - throttledNodeLabel: agents
+        maxConcurrentPerNodeLabeled: 4
+
+credentials:
+  system:
+    domainCredentials:
+    - credentials:
+      - basicSSHUserPrivateKey:
+          id: jenkins
+          scope: GLOBAL
+          username: jenkins
+          privateKeySource:
+            directEntry:
+              privateKey: ${readFile:/run/secrets/id_rsa}
+
+security:
+  queueItemAuthenticator:
+    authenticators:
+    - global:
+        strategy: triggeringUsersAuthorizationStrategy
+
+jenkins:
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+      - id: jenkins
+        password: asd
+  #authorizationStrategy:
+  #  globalMatrix:
+  #    permissions:
+  #    - Overall/Administer:jenkins
+  #    - Overall/Read:authenticated
+  remotingSecurity:
+    enabled: false
+  agentProtocols: [JNLP4-connect]
+  nodes:
+  - permanent:
+      name: agent1
+      labelString: "agent1 agents"
+      launcher:
+        ssh:
+          host: agent1.poc.svc
+          port: 22
+          credentialsId: jenkins
+          sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
+      remoteFS: /home/jenkins
+      mode: EXCLUSIVE
+      numExecutors: 4
+      retentionStrategy: always
+  - permanent:
+      name: agent2
+      labelString: "agent2 agents"
+      launcher:
+        ssh:
+          host: agent2.poc.svc
+          port: 22
+          credentialsId: jenkins
+          sshHostKeyVerificationStrategy: nonVerifyingKeyVerificationStrategy
+      remoteFS: /home/jenkins
+      mode: EXCLUSIVE
+      numExecutors: 4
+      retentionStrategy: always
