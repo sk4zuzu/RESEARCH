@@ -1,0 +1,30 @@
+SHELL := $(shell which bash)
+SELF  := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
+
+ARTIFACT ?= VMware-VCSA-all-6.7.0-18831133.iso
+
+OVA_PATH := $(shell bsdtar -tf $(SELF)/files/$(ARTIFACT) | grep -m1 '^vcsa/VMware-vCenter-Server-Appliance-.*[.]ova$$')
+OVA_VER  := $(shell sed -e 's:^vcsa/VMware-vCenter-Server-Appliance-\(.*\)[.]ova$$:\1:' <<< $(OVA_PATH))
+
+VCSA_VMDK := \
+$(SELF)/.cache/VCSA/VMware-vCenter-Server-Appliance-$(OVA_VER)-disk1.vmdk \
+$(SELF)/.cache/VCSA/VMware-vCenter-Server-Appliance-$(OVA_VER)-disk2.vmdk \
+$(SELF)/.cache/VCSA/VMware-vCenter-Server-Appliance-$(OVA_VER)-disk3.vmdk
+
+export
+
+.PHONY: all
+
+all: $(VCSA_VMDK:%.vmdk=%.qcow2)
+
+$(VCSA_VMDK): $(SELF)/.cache/VCSA/
+
+$(SELF)/.cache/VCSA/: $(SELF)/files/$(ARTIFACT)
+	install -d $@
+	bsdtar -xOf $< $(OVA_PATH) | tar -xf - -C $@
+
+%.qcow2: %.vmdk
+	qemu-img convert -O qcow2 $< $@
+
+clean:
+	-rm -rf $(SELF)/.cache/

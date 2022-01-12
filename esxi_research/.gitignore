@@ -1,0 +1,14 @@
+*.swp
+*.swo
+
+.terraform/
+.terraform.lock.hcl
+
+/.cache/
+/ovftool/
+
+/bin/*
+!/bin/.gitkeep
+
+/files/*
+!/files/.gitkeep

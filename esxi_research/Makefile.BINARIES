@@ -1,0 +1,37 @@
+SHELL := $(shell which bash)
+SELF  := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
+
+PACKER_VERSION    ?= 1.7.8
+TERRAFORM_VERSION ?= 1.1.3
+
+TARGETS = \
+$(SELF)/bin/packer \
+$(SELF)/bin/terraform
+
+define HASHICORP_RELEASE_INSTALL
+$(SELF)/bin/$(1): $(SELF)/bin/$(1)-$(2)
+	rm -f $$@ && ln -s $$< $$@
+$(SELF)/bin/$(1)-$(2):
+	install -d /tmp/$(1)-$(2)/
+	curl -fSL https://releases.hashicorp.com/$(1)/$(2)/$(1)_$(2)_linux_amd64.zip \
+	     -o /tmp/$(1)-$(2)/download.zip
+	unzip -o -d /tmp/$(1)-$(2)/ /tmp/$(1)-$(2)/download.zip
+	mv /tmp/$(1)-$(2)/$(1)* $$@
+	rm -rf /tmp/$(1)-$(2)/
+	chmod +x $$@
+endef
+
+export
+
+.PHONY: all clean
+
+all: $(TARGETS)
+
+clean:
+	-rm -f $(TARGETS)
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,packer,$(PACKER_VERSION)))
+
+$(eval \
+	$(call HASHICORP_RELEASE_INSTALL,terraform,$(TERRAFORM_VERSION)))
