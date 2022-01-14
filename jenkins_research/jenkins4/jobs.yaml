@@ -1,0 +1,57 @@
+---
+jobs:
+
+- script: |
+    pipelineJob('pipeline0') {
+      parameters {
+        stringParam('JOB', 'manual')
+        labelParam('LABEL') {
+            defaultValue('agents')
+            allNodes('allCases', 'IgnoreOfflineNodeEligibility')
+        }
+      }
+      definition {
+        cpsScm {
+          scm {
+            git {
+              remote { url('https://github.com/sk4zuzu/RESEARCH.git') }
+              branches('jenkins')
+              scriptPath('jenkins_research/jenkins4/pipeline0.Jenkinsfile')
+              extensions { }
+            }
+          }
+        }
+      }
+    }
+
+- script: |
+    pipelineJob('pipeline1') {
+      definition {
+        cpsScm {
+          scm {
+            git {
+              remote { url('https://github.com/sk4zuzu/RESEARCH.git') }
+              branches('jenkins')
+              scriptPath('jenkins_research/jenkins4/pipeline1.Jenkinsfile')
+              extensions { }
+            }
+          }
+        }
+      }
+    }
+
+- script: |
+    pipelineJob('pipeline2') {
+      definition {
+        cpsScm {
+          scm {
+            git {
+              remote { url('https://github.com/sk4zuzu/RESEARCH.git') }
+              branches('jenkins')
+              scriptPath('jenkins_research/jenkins4/pipeline2.Jenkinsfile')
+              extensions { }
+            }
+          }
+        }
+      }
+    }

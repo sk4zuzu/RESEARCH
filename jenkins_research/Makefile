@@ -9,7 +9,7 @@ export
 
 all:
 
-.PHONY: scenario1 scenario2 scenario3
+.PHONY: scenario1 scenario2 scenario3 scenario4
 
 scenario1: $(SELF)/docker-compose.yml $(SELF)/scenario1.yml $(SELF)/id_rsa.env
 	docker-compose --env-file $(word 3,$^) -f $(word 1,$^) -f $(word 2,$^) up --build
@@ -18,6 +18,9 @@ scenario2: $(SELF)/docker-compose.yml $(SELF)/scenario2.yml $(SELF)/id_rsa.env
 	docker-compose --env-file $(word 3,$^) -f $(word 1,$^) -f $(word 2,$^) up --build
 
 scenario3: $(SELF)/docker-compose.yml $(SELF)/scenario3.yml $(SELF)/id_rsa.env
+	docker-compose --env-file $(word 3,$^) -f $(word 1,$^) -f $(word 2,$^) up --build
+
+scenario4: $(SELF)/docker-compose.yml $(SELF)/scenario4.yml $(SELF)/id_rsa.env
 	docker-compose --env-file $(word 3,$^) -f $(word 1,$^) -f $(word 2,$^) up --build
 
 $(SELF)/id_rsa.env: $(SELF)/id_rsa.pub
