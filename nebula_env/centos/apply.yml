@@ -102,6 +102,7 @@
         [Link]
         ActivationPolicy=always-up
         EOF
+        systemctl enable systemd-networkd
         systemctl restart systemd-networkd
       args:
         creates: /etc/systemd/network/br0.network
