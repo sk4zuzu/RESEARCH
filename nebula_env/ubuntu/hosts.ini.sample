@@ -1,0 +1,12 @@
+[all:vars]
+ansible_user=ubuntu
+ee_token=abcdefgh:ijklmnop
+ee_version="6.2"
+ssh_public_key=ssh-rsa ...
+
+[opennebula_node_kvm]
+u1b1 ansible_host=10.80.2.20
+u1b2 ansible_host=10.80.2.21
+
+[opennebula]
+u1a1 ansible_host=10.80.2.10

@@ -1,0 +1,182 @@
+---
+- hosts: all
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  tasks:
+    - shell: |
+        set -o errexit -o pipefail
+        curl -fsSL https://downloads.opennebula.io/repo/repo.key | apt-key add -
+
+    - copy:
+        dest: /etc/apt/sources.list.d/opennebula.list
+        content: |
+          deb https://{{ ee_token }}@enterprise.opennebula.io/repo/{{ ee_version }}/Ubuntu/20.04 stable opennebula
+
+    - shell: |
+        set -o errexit
+        apt update
+
+- hosts: opennebula
+  module_defaults: *module_defaults
+  tasks:
+    - shell: |
+        set -o errexit
+        apt install -y mariadb-server
+        systemctl start mariadb.service
+
+    - shell: |
+        set -o errexit
+        mysql -u root <<< "CREATE DATABASE IF NOT EXISTS opennebula CHARACTER SET utf8 COLLATE utf8_general_ci;"
+        mysql -u root <<< "GRANT ALL PRIVILEGES ON *.* TO 'oneadmin'@'%' IDENTIFIED BY 'asd';"
+        mysql -u root <<< "GRANT ALL PRIVILEGES ON *.* TO 'oneadmin'@'localhost' IDENTIFIED BY 'asd';"
+        mysql -u root <<< "SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;"
+
+- hosts: opennebula
+  module_defaults: *module_defaults
+  tasks:
+    - shell: |
+        set -o errexit
+        apt install -y opennebula{,-sunstone,-rubygems,-gate,-flow}
+        {% if ee_version is version('5.13', '>=') %}
+        apt install -y opennebula{-provision,-fireedge}
+        {% endif %}
+
+    - vars:
+        DB: |
+          DB = [ backend = "mysql",
+                 server = "localhost",
+                 port = 0,
+                 user = "oneadmin",
+                 passwd = "asd",
+                 db_name = "opennebula" ]
+      shell: |
+        set -o errexit
+        sed -i '/^DB = \[ BACKEND = "sqlite" \]/d' /etc/one/oned.conf
+        if ! grep ^DB /etc/one/oned.conf; then
+          echo "{{ DB }}" >> /etc/one/oned.conf
+        fi
+
+    - shell: |
+        set -o errexit
+        if ! grep '^oneadmin:asd$' /var/lib/one/.one/one_auth; then
+          echo 'oneadmin:asd' >/var/lib/one/.one/one_auth
+        fi
+
+    - shell: |
+        set -o errexit
+        systemctl start opennebula
+        systemctl start opennebula-sunstone
+        {% if ee_version is version('5.13', '>=') %}
+        systemctl start opennebula-fireedge
+        {% endif %}
+
+- hosts: opennebula_node_kvm
+  module_defaults: *module_defaults
+  tasks:
+    - shell: |
+        set -o errexit
+        apt install -y opennebula-node-kvm
+
+    - shell: |
+        set -o errexit
+        systemctl restart libvirtd
+        if virsh net-dumpxml default; then
+          virsh net-destroy default
+          virsh net-undefine default
+        fi
+
+    - shell: |
+        set -o errexit
+        cat >/etc/systemd/network/br0.netdev <<EOF
+        [NetDev]
+        Name=br0
+        Kind=bridge
+        EOF
+        cat >/etc/systemd/network/br0.network <<EOF
+        [Match]
+        Name=br0
+        [Network]
+        Address=172.20.0.1/24
+        IPForward=ipv4
+        IPMasquerade=yes
+        ConfigureWithoutCarrier=yes
+        [Link]
+        ActivationPolicy=always-up
+        EOF
+        systemctl restart systemd-networkd
+      args:
+        creates: /etc/systemd/network/br0.network
+
+- hosts: opennebula
+  module_defaults: *module_defaults
+  tasks:
+    - copy:
+        dest: /tmp/br0
+        content: |
+          NAME   = "br0"
+          VN_MAD = "bridge"
+          BRIDGE = "br0"
+          AR=[
+            TYPE = "IP4",
+            IP   = "172.20.0.100",
+            SIZE = "100"
+          ]
+          NETWORK_ADDRESS = "172.20.0.0"
+          NETWORK_MASK    = "255.255.255.0"
+          GATEWAY         = "172.20.0.1"
+          DNS             = "1.1.1.1"
+          SEARCH_DOMAIN   = "ubuntu.lh"
+
+    - shell: |
+        set -o errexit
+        if ! onevntemplate show br0; then
+          onevntemplate create /tmp/br0
+        fi
+        if ! onevnet show br0; then
+          onevntemplate instantiate br0 --name br0
+        fi
+
+    - shell: |
+        set -o errexit
+        onemarketapp export 'Alpine Linux 3.14' alpine314 --datastore default || true
+        onetemplate update -a alpine314 /dev/fd/0 <<EOF
+        CONTEXT=[
+          NETWORK="YES",
+          SSH_PUBLIC_KEY="$SSH_PUBLIC_KEY" ]
+        EOF
+      environment:
+        SSH_PUBLIC_KEY: "{{ ssh_public_key }}"
+
+- hosts: opennebula
+  module_defaults: *module_defaults
+  pre_tasks:
+    - copy:
+        dest: /var/lib/one/.ssh/config
+        owner: oneadmin
+        group: oneadmin
+        mode: u=rw,go=
+        content: |
+          StrictHostKeyChecking no
+          UserKnownHostsFile /dev/null
+
+    - slurp:
+        src: /var/lib/one/.ssh/id_rsa.pub
+      register: slurp_id_rsa_pub
+
+    - authorized_key:
+        user: oneadmin
+        key: "{{ slurp_id_rsa_pub.content | b64decode }}"
+        state: present
+      delegate_to: "{{ item }}"
+      loop: "{{ groups.opennebula_node_kvm }}"
+
+- hosts: opennebula
+  module_defaults: *module_defaults
+  tasks:
+    - shell: |
+        set -o errexit
+        {% for host in groups.opennebula_node_kvm %}
+        if ! onehost show {{ host }}; then
+          onehost create {{ host }} -i kvm -v kvm
+        fi
+        {% endfor %}
