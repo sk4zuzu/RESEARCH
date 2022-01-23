@@ -143,6 +143,9 @@
         CONTEXT=[
           NETWORK="YES",
           SSH_PUBLIC_KEY="$SSH_PUBLIC_KEY" ]
+        NIC=[
+          NETWORK_ID="0",
+          SECURITY_GROUPS="0" ]
         EOF
       environment:
         SSH_PUBLIC_KEY: "{{ ssh_public_key }}"
