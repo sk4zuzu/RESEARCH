@@ -66,12 +66,12 @@
 
     - shell: |
         set -o errexit
-        if ! grep '^:public_fireedge_endpoint: "{{ _endpoint }}"' /etc/one/sunstone-server.conf; then
-          sed -i '/^:public_fireedge_endpoint:/d' /etc/one/sunstone-server.conf
-          echo ':public_fireedge_endpoint: "{{ _endpoint }}"' >> /etc/one/sunstone-server.conf
+        if ! grep '^:host: "{{ _endpoint }}"' /etc/one/onegate-server.conf; then
+          sed -i '/^:host:/d' /etc/one/onegate-server.conf
+          echo ':host: "{{ _endpoint }}"' >> /etc/one/onegate-server.conf
         fi
       vars:
-        _endpoint: "http://{{ hostvars[groups.opennebula.0].ansible_host }}:2616"
+        _endpoint: "0.0.0.0"
 
     - shell: |
         set -o errexit
@@ -81,6 +81,15 @@
         fi
       vars:
         _endpoint: "http://{{ hostvars[groups.opennebula.0].ansible_host }}:5030"
+
+    - shell: |
+        set -o errexit
+        if ! grep '^:public_fireedge_endpoint: "{{ _endpoint }}"' /etc/one/sunstone-server.conf; then
+          sed -i '/^:public_fireedge_endpoint:/d' /etc/one/sunstone-server.conf
+          echo ':public_fireedge_endpoint: "{{ _endpoint }}"' >> /etc/one/sunstone-server.conf
+        fi
+      vars:
+        _endpoint: "http://{{ hostvars[groups.opennebula.0].ansible_host }}:2616"
 
     - shell: |
         set -o errexit
@@ -138,11 +147,10 @@
           NAME   = "br0"
           VN_MAD = "bridge"
           BRIDGE = "br0"
-          AR=[
+          AR = [
             TYPE = "IP4",
             IP   = "172.20.0.100",
-            SIZE = "100"
-          ]
+            SIZE = "100" ]
           NETWORK_ADDRESS = "172.20.0.0"
           NETWORK_MASK    = "255.255.255.0"
           GATEWAY         = "172.20.0.1"
@@ -161,16 +169,16 @@
     - shell: |
         set -o errexit
         oneuser update oneadmin -a /dev/fd/0 <<'EOF'
-        SSH_PUBLIC_KEY={{ '"' ~ ssh_public_key ~ '"' }}
+        SSH_PUBLIC_KEY = "{{ ssh_public_key }}"
         EOF
 
     - shell: |
         set -o errexit
         onemarketapp export 'Alpine Linux 3.14' alpine314 --datastore default || true
         onetemplate update -a alpine314 /dev/fd/0 <<'EOF'
-        NIC=[
-          NETWORK_ID="0",
-          SECURITY_GROUPS="0" ]
+        NIC = [
+          NETWORK_ID = "0",
+          SECURITY_GROUPS = "0" ]
         EOF
 
 - hosts: opennebula
