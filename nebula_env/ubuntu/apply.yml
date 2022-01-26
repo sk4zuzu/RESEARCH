@@ -95,8 +95,10 @@
 
     - shell: |
         set -o errexit
+        systemctl enable opennebula{,-flow,-gate,-sunstone}
         systemctl restart opennebula{,-flow,-gate,-sunstone}
         {% if ee_version is version('5.13', '>=') %}
+        systemctl enable opennebula-fireedge
         systemctl restart opennebula-fireedge
         {% endif %}
 
