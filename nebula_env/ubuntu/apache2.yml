@@ -1,0 +1,51 @@
+- hosts: opennebula
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  environment: &environment
+    DEBIAN_FRONTEND: noninteractive
+  tasks:
+    - shell: |
+        set -o errexit
+        apt-get -q install -y memcached apache2 libapache2-mod-passenger
+        systemctl enable memcached
+        systemctl enable apache2
+
+    - shell: |
+        set -o errexit
+        systemctl disable opennebula-sunstone
+        systemctl stop opennebula-sunstone
+        if ! grep '^:sessions: memcache' /etc/one/sunstone-server.conf; then
+          sed -i '/^:sessions:/d' /etc/one/sunstone-server.conf
+          echo ':sessions: memcache' >> /etc/one/sunstone-server.conf
+        fi
+        chmod ugo+x /var/lib/one/{,sunstone/}
+
+    - shell: |
+        set -o errexit
+
+        cat >/etc/apache2/sites-available/nebula.conf <<'EOF'
+        <VirtualHost *:80>
+          ServerName {{ hostvars[inventory_hostname].ansible_fqdn }}
+
+          PassengerUser oneadmin
+
+          SetEnv GEM_PATH /usr/share/one/gems/
+          SetEnv GEM_HOME /usr/share/one/gems/
+
+          DocumentRoot /usr/lib/one/sunstone/public
+          <Directory /usr/lib/one/sunstone/public>
+             AllowOverride all
+             Options -MultiViews
+             Require all granted
+             Options FollowSymLinks
+          </Directory>
+        </VirtualHost>
+        EOF
+
+        a2dissite 000-default
+        a2dissite default-ssl
+        a2ensite nebula
+
+        systemctl restart apache2
+      args:
+        creates: /etc/apache2/sites-available/nebula.conf

@@ -6,9 +6,12 @@ ANSIBLE_STRATEGY         := mitogen_linear
 
 export
 
-.PHONY: all apply
+.PHONY: all apply apache2
 
 all: apply
 
 apply: $(SELF)/apply.yml $(SELF)/hosts.ini
+	cd $(SELF)/ && ansible-playbook -vv $<
+
+apache2: $(SELF)/apache2.yml $(SELF)/hosts.ini
 	cd $(SELF)/ && ansible-playbook -vv $<
