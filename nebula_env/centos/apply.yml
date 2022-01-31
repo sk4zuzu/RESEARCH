@@ -43,6 +43,22 @@
         yum install -y opennebula-fireedge
         {% endif %}
 
+    - user:
+        name: one
+        home: /home/one
+        shell: /bin/bash
+        system: false
+
+    - shell: |
+        set -o errexit
+        if ! grep '^oneadmin:asd$' {{ item.home }}/.one/one_auth; then
+          install -o {{ item.owner }} -g {{ item.group }} -m u=rwx,g=rx,o= -d {{ item.home }}/.one/
+          install -o {{ item.owner }} -g {{ item.group }} -m u=rw,g=r,o= /dev/fd/0 {{ item.home }}/.one/one_auth <<< 'oneadmin:asd'
+        fi
+      loop:
+        - { owner: oneadmin, group: oneadmin, home: /var/lib/one/ }
+        - { owner: one     , group: one     , home: /home/one/    }
+
     - vars:
         DB: |
           DB = [ backend = "mysql",
@@ -56,12 +72,6 @@
         sed -i '/^DB = \[ BACKEND = "sqlite" \]/d' /etc/one/oned.conf
         if ! grep ^DB /etc/one/oned.conf; then
           echo "{{ DB }}" >> /etc/one/oned.conf
-        fi
-
-    - shell: |
-        set -o errexit
-        if ! grep '^oneadmin:asd$' /var/lib/one/.one/one_auth; then
-          echo 'oneadmin:asd' >/var/lib/one/.one/one_auth
         fi
 
     - shell: |
@@ -187,6 +197,14 @@
   module_defaults: *module_defaults
   environment: *environment
   pre_tasks:
+    - authorized_key:
+        user: "{{ item }}"
+        key: "{{ ssh_public_key }}"
+        state: present
+      loop:
+        - oneadmin
+        - one
+
     - copy:
         dest: /var/lib/one/.ssh/config
         owner: oneadmin
@@ -195,11 +213,6 @@
         content: |
           StrictHostKeyChecking no
           UserKnownHostsFile /dev/null
-
-    - authorized_key:
-        user: oneadmin
-        key: "{{ ssh_public_key }}"
-        state: present
 
     - slurp:
         src: /var/lib/one/.ssh/id_rsa.pub
