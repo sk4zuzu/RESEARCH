@@ -196,6 +196,11 @@
           StrictHostKeyChecking no
           UserKnownHostsFile /dev/null
 
+    - authorized_key:
+        user: oneadmin
+        key: "{{ ssh_public_key }}"
+        state: present
+
     - slurp:
         src: /var/lib/one/.ssh/id_rsa.pub
       register: slurp_id_rsa_pub
