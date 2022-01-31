@@ -146,9 +146,9 @@
   environment: *environment
   tasks:
     - copy:
-        dest: /tmp/br0
+        dest: /tmp/service_vnet
         content: |
-          NAME   = "br0"
+          NAME   = "service"
           VN_MAD = "bridge"
           BRIDGE = "br0"
           AR = [
@@ -163,11 +163,11 @@
 
     - shell: |
         set -o errexit
-        if ! onevntemplate show br0; then
-          onevntemplate create /tmp/br0
+        if ! onevntemplate show service; then
+          onevntemplate create /tmp/service_vnet
         fi
-        if ! onevnet show br0; then
-          onevntemplate instantiate br0 --name br0
+        if ! onevnet show service; then
+          onevntemplate instantiate service --name service
         fi
 
     - shell: |
