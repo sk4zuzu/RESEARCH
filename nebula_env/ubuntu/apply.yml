@@ -78,6 +78,15 @@
 
     - shell: |
         set -o errexit
+        if ! grep '^:host: "{{ _endpoint }}"' /etc/one/oneflow-server.conf; then
+          sed -i '/^:host:/d' /etc/one/oneflow-server.conf
+          echo ':host: "{{ _endpoint }}"' >> /etc/one/oneflow-server.conf
+        fi
+      vars:
+        _endpoint: "0.0.0.0"
+
+    - shell: |
+        set -o errexit
         if ! grep '^:host: "{{ _endpoint }}"' /etc/one/onegate-server.conf; then
           sed -i '/^:host:/d' /etc/one/onegate-server.conf
           echo ':host: "{{ _endpoint }}"' >> /etc/one/onegate-server.conf
