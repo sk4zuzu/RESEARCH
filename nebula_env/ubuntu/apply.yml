@@ -42,7 +42,7 @@
         set -o errexit
         apt-get -q install -y opennebula{,-flow,-gate,-provision,-rubygems,-sunstone}
         {% if ee_version is version('5.13', '>=') %}
-        apt install -y opennebula-fireedge
+        apt-get -q install -y opennebula-fireedge
         {% endif %}
 
     - user:
