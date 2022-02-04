@@ -18,7 +18,7 @@
         set -o errexit
         apt-get -q update -y
 
-- hosts: opennebula
+- hosts: opennebula[0]
   module_defaults: *module_defaults
   environment: *environment
   tasks:
@@ -160,7 +160,7 @@
       args:
         creates: /etc/systemd/network/br0.network
 
-- hosts: opennebula
+- hosts: opennebula[0]
   module_defaults: *module_defaults
   environment: *environment
   tasks:
@@ -225,6 +225,10 @@
           StrictHostKeyChecking no
           UserKnownHostsFile /dev/null
 
+- hosts: opennebula[0]
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
     - slurp:
         src: /var/lib/one/.ssh/id_rsa.pub
       register: slurp_id_rsa_pub
@@ -236,10 +240,6 @@
       delegate_to: "{{ item }}"
       loop: "{{ groups.opennebula_node_kvm }}"
 
-- hosts: opennebula
-  module_defaults: *module_defaults
-  environment: *environment
-  tasks:
     - shell: |
         set -o errexit
         {% for host in groups.opennebula_node_kvm %}
