@@ -1,5 +1,5 @@
 ---
-- hosts: all
+- hosts: opennebula[0]:opennebula_node_kvm
   module_defaults: &module_defaults
     shell: { executable: /bin/bash }
   environment: &environment
@@ -34,7 +34,7 @@
         mysql -u root <<< "GRANT ALL PRIVILEGES ON *.* TO 'oneadmin'@'localhost' IDENTIFIED BY 'asd';"
         mysql -u root <<< "SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;"
 
-- hosts: opennebula
+- hosts: opennebula[0]
   module_defaults: *module_defaults
   environment: *environment
   tasks:
@@ -204,7 +204,7 @@
           SECURITY_GROUPS = "0" ]
         EOF
 
-- hosts: opennebula
+- hosts: opennebula[0]
   module_defaults: *module_defaults
   environment: *environment
   pre_tasks:
