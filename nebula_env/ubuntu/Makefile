@@ -6,12 +6,19 @@ ANSIBLE_STRATEGY         := mitogen_linear
 
 export
 
-.PHONY: all solo apache2
+.PHONY: all solo nspawn raft apache2
 
 all: solo
 
-solo: $(SELF)/solo.yml $(SELF)/hosts.ini
-	cd $(SELF)/ && ansible-playbook -vv $<
+solo: $(SELF)/hosts.ini $(SELF)/solo.yml
+	cd $(SELF)/ && ansible-playbook -vv -i $^
 
-apache2: $(SELF)/apache2.yml $(SELF)/hosts.ini
-	cd $(SELF)/ && ansible-playbook -vv $<
+nspawn: $(SELF)/nspawn.ini $(SELF)/solo.yml
+	cd $(SELF)/ && ansible-playbook -vv -i $^
+
+raft: $(SELF)/hosts.ini $(SELF)/raft.yml
+	cd $(SELF)/ && ansible-playbook -vv -i $^
+
+apache2: $(SELF)/hosts.ini $(SELF)/apache2.yml
+	cd $(SELF)/ && ansible-playbook -vv -i $^
+

@@ -1,0 +1,183 @@
+---
+- hosts: opennebula
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  environment: &environment
+    DEBIAN_FRONTEND: noninteractive
+  gather_facts: true
+  tasks: []
+
+- hosts: opennebula[1:]
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit -o pipefail
+        curl -fsSL https://downloads.opennebula.io/repo/repo.key | apt-key add -
+
+    - copy:
+        dest: /etc/apt/sources.list.d/opennebula.list
+        content: |
+          deb https://{{ ee_token }}@enterprise.opennebula.io/repo/{{ ee_version }}/Ubuntu/20.04 stable opennebula
+
+    - shell: |
+        set -o errexit
+        apt-get -q update -y
+
+- hosts: opennebula[1:]
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        apt-get -q install -y mariadb-server
+        systemctl start mariadb.service
+
+    - shell: |
+        set -o errexit
+        mysql -u root <<< "CREATE DATABASE IF NOT EXISTS opennebula CHARACTER SET utf8 COLLATE utf8_general_ci;"
+        mysql -u root <<< "GRANT ALL PRIVILEGES ON *.* TO 'oneadmin'@'%' IDENTIFIED BY 'asd';"
+        mysql -u root <<< "GRANT ALL PRIVILEGES ON *.* TO 'oneadmin'@'localhost' IDENTIFIED BY 'asd';"
+        mysql -u root <<< "SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;"
+
+- hosts: opennebula[1:]
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        apt-get -q install -y opennebula{,-flow,-gate,-provision,-rubygems,-sunstone}
+        {% if ee_version is version('5.13', '>=') %}
+        apt-get -q install -y opennebula-fireedge
+        {% endif %}
+
+    - user:
+        name: one
+        home: /home/one
+        shell: /bin/bash
+        system: false
+
+    - delegate_to: "{{ groups.opennebula[0] }}"
+      run_once: true
+      slurp:
+        src: /var/lib/one/.ssh/id_rsa.pub
+      register: slurp_id_rsa_pub
+
+    - authorized_key:
+        user: oneadmin
+        key: "{{ slurp_id_rsa_pub.content | b64decode }}"
+        state: present
+
+- hosts: opennebula[0]
+  module_defaults: *module_defaults
+  environment: *environment
+  vars:
+    _name: "{{ inventory_hostname_short }}"
+    _host: "{{ ansible_host }}"
+  tasks:
+    - shell: |
+        set -o errexit -o pipefail
+        if ! onezone show 0 --json | jq -re '[.ZONE.SERVER_POOL.SERVER] | flatten | map(select(.NAME == "{{ _name }}")) | length > 0'; then
+          onezone server-add 0 --name "{{ _name }}" --rpc "http://{{ _host }}:2633/RPC2"
+        fi
+
+    - shell: |
+        set -o errexit -o pipefail
+        onezone show 0 --json | jq -re '[.ZONE.SERVER_POOL.SERVER] | flatten | map(select(.NAME == "{{ _name }}")) | first | .ID'
+      register: shell_server_id
+
+    - shell: |
+        set -o errexit -o pipefail
+
+        gawk -i inplace -v SERVER_ID={{ shell_server_id.stdout_lines[0].strip() }} -f- /etc/one/oned.conf <<'EOF'
+        /^FEDERATION/,/^\]/ { if ($1 == "SERVER_ID") $3 = SERVER_ID "," }
+        { print }
+        EOF
+
+        gawk -i inplace -f- /etc/one/oned.conf <<'EOF'
+        /^RAFT_LEADER_HOOK/,/^\]/ { next }
+        /^RAFT_FOLLOWER_HOOK/,/^\]/ { next }
+        { print }
+        EOF
+        cat >>/etc/one/oned.conf <<'EOF'
+        RAFT_LEADER_HOOK = [
+             COMMAND = "raft/vip.sh",
+             ARGUMENTS = "leader eth0 10.11.12.13/24"
+        ]
+        RAFT_FOLLOWER_HOOK = [
+            COMMAND = "raft/vip.sh",
+            ARGUMENTS = "follower eth0 10.11.12.13/24"
+        ]
+        EOF
+
+    - shell: |
+        set -o errexit
+        systemctl restart opennebula
+
+- hosts: opennebula[0]
+  module_defaults: *module_defaults
+  environment: *environment
+  become: false
+  tasks:
+    - shell: |
+        set -o errexit
+
+        sudo rm -f /tmp/opennebula.sql
+        sudo onedb backup -u oneadmin -p asd -d opennebula /tmp/opennebula.sql
+        sudo rm -rf /tmp/{.one/,.ssh/,one/} && sudo cp -pr /var/lib/one/{.one/,.ssh/} /etc/one/ /tmp/
+        sudo chown -R {{ ansible_user }} /tmp/{opennebula.sql,.one/,.ssh/,one/}
+
+        SSH_OPTS='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+
+        {% for host in groups.opennebula[1:] %}
+        ssh $SSH_OPTS {{ host }} rm -rf /tmp/{opennebula.sql,.one/,.ssh/,one/}
+        scp $SSH_OPTS -r /tmp/{opennebula.sql,.one/,.ssh/,one/} {{ host }}:/tmp/
+        {% endfor %}
+
+- hosts: opennebula[1:]
+  module_defaults: *module_defaults
+  environment: *environment
+  vars:
+    _name: "{{ inventory_hostname_short }}"
+    _host: "{{ ansible_host }}"
+  tasks:
+    - shell: |
+        set -o errexit
+
+        systemctl stop opennebula
+
+        rm -rf /var/lib/one/{.one/,.ssh/} && cp -pr /tmp/{.one/,.ssh/} /var/lib/one/
+        rm -rf /etc/one/ && cp -pr /tmp/one/ /etc/
+        chown -R oneadmin:oneadmin /var/lib/one/{.one/,.ssh/} /etc/one/
+        onedb restore -u oneadmin -p asd -d opennebula -f /tmp/opennebula.sql
+
+- hosts: opennebula[1:]
+  module_defaults: *module_defaults
+  environment: *environment
+  vars:
+    _name: "{{ inventory_hostname_short }}"
+    _host: "{{ ansible_host }}"
+  serial: 1
+  tasks:
+    - delegate_to: "{{ groups.opennebula[0] }}"
+      shell: |
+        set -o errexit -o pipefail
+        if ! onezone show 0 --json | jq -re '[.ZONE.SERVER_POOL.SERVER] | flatten | map(select(.NAME == "{{ _name }}")) | length > 0'; then
+          onezone server-add 0 --name "{{ _name }}" --rpc "http://{{ _host }}:2633/RPC2"
+        fi
+
+    - delegate_to: "{{ groups.opennebula[0] }}"
+      shell: |
+        set -o errexit -o pipefail
+        onezone show 0 --json | jq -re '[.ZONE.SERVER_POOL.SERVER] | flatten | map(select(.NAME == "{{ _name }}")) | first | .ID'
+      register: shell_server_id
+
+    - shell: |
+        set -o errexit -o pipefail
+
+        gawk -i inplace -v SERVER_ID={{ shell_server_id.stdout_lines[0].strip() }} -f- /etc/one/oned.conf <<'EOF'
+        /^FEDERATION/,/^\]/ { if ($1 == "SERVER_ID") $3 = SERVER_ID "," }
+        { print }
+        EOF
+
+        systemctl start opennebula

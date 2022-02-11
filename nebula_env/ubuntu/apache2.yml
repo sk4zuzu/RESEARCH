@@ -3,6 +3,12 @@
     shell: { executable: /bin/bash }
   environment: &environment
     DEBIAN_FRONTEND: noninteractive
+  gather_facts: true
+  tasks: []
+
+- hosts: opennebula
+  module_defaults: *module_defaults
+  environment: *environment
   tasks:
     - shell: |
         set -o errexit
@@ -12,8 +18,7 @@
 
     - shell: |
         set -o errexit
-        systemctl disable opennebula-sunstone
-        systemctl stop opennebula-sunstone
+        systemctl disable opennebula-sunstone --now
         if ! grep '^:sessions: memcache' /etc/one/sunstone-server.conf; then
           sed -i '/^:sessions:/d' /etc/one/sunstone-server.conf
           echo ':sessions: memcache' >> /etc/one/sunstone-server.conf

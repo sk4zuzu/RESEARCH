@@ -4,6 +4,12 @@
     shell: { executable: /bin/bash }
   environment: &environment
     DEBIAN_FRONTEND: noninteractive
+  gather_facts: true
+  tasks: []
+
+- hosts: opennebula[0]:opennebula_node_kvm
+  module_defaults: *module_defaults
+  environment: *environment
   tasks:
     - shell: |
         set -o errexit -o pipefail
@@ -71,10 +77,11 @@
                  db_name = "opennebula" ]
       shell: |
         set -o errexit
-        sed -i '/^DB = \[ BACKEND = "sqlite" \]/d' /etc/one/oned.conf
-        if ! grep ^DB /etc/one/oned.conf; then
-          echo "{{ DB }}" >> /etc/one/oned.conf
-        fi
+        gawk -i inplace -f- /etc/one/oned.conf <<'EOF'
+        /^DB = /,/^\]/ { next }
+        { print }
+        EOF
+        echo '{{ DB }}' >> /etc/one/oned.conf
 
     - shell: |
         set -o errexit
