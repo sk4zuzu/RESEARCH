@@ -1,0 +1,173 @@
+---
+- hosts: mons
+  module_defaults:
+    shell: { executable: /bin/bash }
+  tasks:
+    - apt:
+        name: [qemu-utils]
+        state: present
+        update_cache: true
+
+    - run_once: true
+      block:
+        - shell: |
+            set -o errexit
+            ceph osd pool create one 32
+          changed_when: false
+
+        - shell: |
+            set -o errexit
+            ceph auth get-or-create client.libvirt mon 'profile rbd' osd 'profile rbd pool=one'
+          changed_when: false
+
+- hosts: opennebula_node_kvm
+  module_defaults:
+    shell: { executable: /bin/bash }
+  vars:
+    _uuid_file_path: /etc/ceph/client.libvirt.secret.uuid
+  tasks:
+    - apt:
+        name:
+          - ceph-common
+          - qemu-utils
+        state: present
+        update_cache: true
+
+    - file:
+        path: /var/run/ceph/
+        state: directory
+        owner: oneadmin
+        group: oneadmin
+        mode: u=rwx,go=rx
+
+    - run_once: true
+      block:
+        - shell: |
+            set -o errexit
+            cat >"{{ _uuid_file_path }}" <<'EOF'
+            {{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') | to_uuid }}
+            EOF
+          args:
+            creates: "{{ _uuid_file_path }}"
+
+        - slurp:
+            path: "{{ _uuid_file_path }}"
+          register: slurp_client_libvirt_secret_uuid
+
+    - copy:
+        dest: "{{ _uuid_file_path }}"
+        mode: u=rw,go=r
+        content: |
+          {{ slurp_client_libvirt_secret_uuid.content | b64decode | trim }}
+
+    - delegate_to: "{{ groups.mons[0] }}"
+      run_once: true
+      block:
+        - shell: |
+            set -o errexit
+            ceph auth get client.libvirt
+          register: shell_client_libvirt_keyring
+          changed_when: false
+
+        - shell: |
+            set -o errexit
+            ceph auth get-key client.libvirt
+          register: shell_client_libvirt_key
+          changed_when: false
+
+    - copy:
+        dest: /etc/ceph/ceph.client.libvirt.keyring
+        mode: u=rw,go=r
+        content: |
+          {{ shell_client_libvirt_keyring.stdout | trim }}
+
+    - copy:
+        dest: /etc/ceph/ceph.conf
+        mode: u=rw,go=r
+        content: |
+          [client.libvirt]
+          log file = /var/log/ceph/qemu-guest-$pid.log
+          admin socket = /var/run/ceph/$cluster-$type.$id.$pid.$cctid.asok
+          [global]
+          mon host = {{ _mons }}
+      vars:
+        _ipv4s: >-
+          {{ groups.mons | map('extract', hostvars, ['ansible_host']) | list }}
+        _mons: >-
+          {%- set output = [] -%}
+          {%- for ipv4 in _ipv4s -%}
+          {{- output.append( '[v2:%(ipv4)s:3300,v1:%(ipv4)s:6789]' | format(ipv4=ipv4) ) -}}
+          {%- endfor -%}
+          {{- output | join( ',' ) -}}
+
+    - copy:
+        dest: /etc/ceph/client.libvirt.secret.xml
+        mode: u=rw,go=r
+        content: |
+          <secret ephemeral='no' private='no'>
+            <uuid>{{ slurp_client_libvirt_secret_uuid.content | b64decode | trim }}</uuid>
+            <usage type='ceph'>
+              <name>client.libvirt secret</name>
+            </usage>
+          </secret>
+
+    - become_user: oneadmin
+      shell: |
+        set -o errexit
+        if ! virsh -c 'qemu:///system' secret-dumpxml {{ _uuid }}; then
+          virsh -c 'qemu:///system' secret-define \
+          /etc/ceph/client.libvirt.secret.xml
+          virsh -c 'qemu:///system' secret-set-value \
+          --secret {{ _uuid }} \
+          --base64 {{ shell_client_libvirt_key.stdout | trim }}
+        fi
+      vars:
+        _uuid: >-
+          {{ slurp_client_libvirt_secret_uuid.content | b64decode | trim }}
+      changed_when: false
+
+- hosts: opennebula
+  module_defaults:
+    shell: { executable: /bin/bash }
+  tasks:
+    - run_once: true
+      vars:
+        _ceph_host: >-
+          {{ groups.mons | map('extract', hostvars, ['ansible_host']) | join( ' ' ) }}
+        _ceph_secret: >-
+          {{ hostvars[groups.opennebula_node_kvm[0]].slurp_client_libvirt_secret_uuid.content | b64decode | trim }}
+        _bridge_list: >-
+          {{ groups.opennebula_node_kvm | map('extract', hostvars, ['inventory_hostname_short']) | join( ' ' ) }}
+      block:
+        - shell: |
+            set -o errexit
+            if onedatastore show ceph_system; then
+              exit 0
+            fi
+            onedatastore create /dev/fd/0 <<'EOF'
+            NAME = ceph_system
+            TM_MAD = ceph
+            TYPE = SYSTEM_DS
+            POOL_NAME = one
+            CEPH_HOST = "{{ _ceph_host }}"
+            CEPH_USER = libvirt
+            CEPH_SECRET = "{{ _ceph_secret }}"
+            BRIDGE_LIST = "{{ _bridge_list }}"
+            EOF
+
+        - shell: |
+            set -o errexit
+            if onedatastore show cephds; then
+              exit 0
+            fi
+            onedatastore create /dev/fd/0 <<'EOF'
+            NAME = cephds
+            DS_MAD = ceph
+            TM_MAD = ceph
+            DISK_TYPE = RBD
+            POOL_NAME = one
+            CEPH_HOST = "{{ _ceph_host }}"
+            CEPH_USER = libvirt
+            CEPH_SECRET = "{{ _ceph_secret }}"
+            BRIDGE_LIST = "{{ _bridge_list }}"
+            EOF
