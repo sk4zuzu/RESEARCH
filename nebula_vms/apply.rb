@@ -10,6 +10,14 @@ require 'base64'
 require 'opennebula'
 require 'rspec'
 
+DATASTORE    = 'default'
+DATASTORE_ID = '1'
+IMAGE_ID     = '0'
+
+#DATASTORE    = 'cephds'
+#DATASTORE_ID = '101'
+#IMAGE_ID     = '1'
+
 class ASD
     def initialize(xml_rpc_url, credentials)
         @client = OpenNebula::Client.new credentials, xml_rpc_url
@@ -31,13 +39,13 @@ class ASD
 
         image = OpenNebula::Image.new OpenNebula::Image.build_xml, @client
 
-        err = image.allocate <<~CONTENTS, 1
+        err = image.allocate <<~CONTENTS, DATASTORE_ID.to_i
         NAME="#{name}"
         TYPE="DATABLOCK"
         PERSISTENT="YES"
         FORMAT="qcow2"
         FS="ext4"
-        SIZE="36864"
+        SIZE="24576"
         DEV_PREFIX="vd"
         CONTENTS
 
@@ -70,16 +78,15 @@ class ASD
           CLONE="YES",
           CLONE_TARGET="SYSTEM",
           CLUSTER_ID="0",
-          DATASTORE="default",
-          DATASTORE_ID="1",
+          DATASTORE="#{DATASTORE}",
+          DATASTORE_ID="#{DATASTORE_ID}",
           DEV_PREFIX="vd",
           DISK_ID="0",
           DISK_SNAPSHOT_TOTAL_SIZE="0",
           DISK_TYPE="FILE",
           DRIVER="qcow2",
           FORMAT="qcow2",
-          IMAGE="alpine314",
-          IMAGE_ID="0",
+          IMAGE_ID="#{IMAGE_ID}",
           IMAGE_STATE="1",
           LN_TARGET="SYSTEM",
           ORIGINAL_SIZE="256",
@@ -148,8 +155,8 @@ class ASD
               ALLOW_ORPHANS="YES",
               CLONE="NO",
               CLUSTER_ID="0",
-              DATASTORE="default",
-              DATASTORE_ID="1",
+              DATASTORE="#{DATASTORE}",
+              DATASTORE_ID="#{DATASTORE_ID}",
               DEV_PREFIX="vd",
               DISK_ID="1",
               DISK_SNAPSHOT_TOTAL_SIZE="0",
