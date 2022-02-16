@@ -67,7 +67,7 @@
         - { owner: oneadmin, group: oneadmin, home: /var/lib/one/ }
         - { owner: one     , group: one     , home: /home/one/    }
 
-    - vars:
+    - environment:
         DB: |
           DB = [ backend = "mysql",
                  server = "localhost",
@@ -77,47 +77,44 @@
                  db_name = "opennebula" ]
       shell: |
         set -o errexit
-        gawk -i inplace -f- /etc/one/oned.conf <<'EOF'
+        gawk -i inplace -v DB="$DB" -f- /etc/one/oned.conf <<'EOF'
         /^DB = /,/^\]/ { next }
         { print }
+        END { print DB >>FILENAME }
         EOF
-        echo '{{ DB }}' >> /etc/one/oned.conf
 
-    - shell: |
+    - vars: { _endpoint: "http://{{ hostvars[groups.opennebula.0].ansible_host }}:5030" }
+      shell: |
         set -o errexit
-        if ! grep '^:host: "{{ _endpoint }}"' /etc/one/oneflow-server.conf; then
-          sed -i '/^:host:/d' /etc/one/oneflow-server.conf
-          echo ':host: "{{ _endpoint }}"' >> /etc/one/oneflow-server.conf
-        fi
-      vars:
-        _endpoint: "0.0.0.0"
+        gawk -i inplace -f- /etc/one/oned.conf <<'EOF'
+        BEGIN { update = "ONEGATE_ENDPOINT = \"{{ _endpoint }}\"" }
+        /^#*ONEGATE_ENDPOINT[^=]*=/ { $0 = update; found = 1 }
+        { print }
+        END { if (!found) print update >>FILENAME }
+        EOF
 
-    - shell: |
+    - vars: { _endpoint: "http://{{ hostvars[groups.opennebula.0].ansible_host }}:2616" }
+      shell: |
         set -o errexit
-        if ! grep '^:host: "{{ _endpoint }}"' /etc/one/onegate-server.conf; then
-          sed -i '/^:host:/d' /etc/one/onegate-server.conf
-          echo ':host: "{{ _endpoint }}"' >> /etc/one/onegate-server.conf
-        fi
-      vars:
-        _endpoint: "0.0.0.0"
+        gawk -i inplace -f- /etc/one/sunstone-server.conf <<'EOF'
+        BEGIN { update = ":public_fireedge_endpoint: {{ _endpoint }}" }
+        /^#*:public_fireedge_endpoint:/ { $0 = update; found = 1 }
+        { print }
+        END { if (!found) print update >>FILENAME }
+        EOF
 
-    - shell: |
+    - vars: { _endpoint: "0.0.0.0" }
+      shell: |
         set -o errexit
-        if ! grep '^ONEGATE_ENDPOINT = "{{ _endpoint }}"' /etc/one/oned.conf; then
-          sed -i '/^ONEGATE_ENDPOINT/d' /etc/one/oned.conf
-          echo 'ONEGATE_ENDPOINT = "{{ _endpoint }}"' >> /etc/one/oned.conf
-        fi
-      vars:
-        _endpoint: "http://{{ hostvars[groups.opennebula.0].ansible_host }}:5030"
-
-    - shell: |
-        set -o errexit
-        if ! grep '^:public_fireedge_endpoint: "{{ _endpoint }}"' /etc/one/sunstone-server.conf; then
-          sed -i '/^:public_fireedge_endpoint:/d' /etc/one/sunstone-server.conf
-          echo ':public_fireedge_endpoint: "{{ _endpoint }}"' >> /etc/one/sunstone-server.conf
-        fi
-      vars:
-        _endpoint: "http://{{ hostvars[groups.opennebula.0].ansible_host }}:2616"
+        gawk -i inplace -f- '{{ item }}' <<'EOF'
+        BEGIN { update = ":host: {{ _endpoint }}" }
+        /^#*:host:/ { $0 = update; found = 1 }
+        { print }
+        END { if (!found) print update >>FILENAME }
+        EOF
+      loop:
+        - /etc/one/oneflow-server.conf
+        - /etc/one/onegate-server.conf
 
     - shell: |
         set -o errexit

@@ -19,10 +19,12 @@
     - shell: |
         set -o errexit
         systemctl disable opennebula-sunstone --now
-        if ! grep '^:sessions: memcache' /etc/one/sunstone-server.conf; then
-          sed -i '/^:sessions:/d' /etc/one/sunstone-server.conf
-          echo ':sessions: memcache' >> /etc/one/sunstone-server.conf
-        fi
+        gawk -i inplace -f- /etc/one/sunstone-server.conf <<'EOF'
+        BEGIN { update = ":sessions: memcache" }
+        /^#*:sessions:/ { $0 = update; found = 1 }
+        { print }
+        END { if (!found) print update >>FILENAME }
+        EOF
         chmod ugo+x /var/lib/one/{,sunstone/}
 
     - shell: |
