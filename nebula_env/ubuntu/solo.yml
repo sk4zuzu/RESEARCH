@@ -47,7 +47,7 @@
     - shell: |
         set -o errexit
         apt-get -q install -y opennebula{,-flow,-gate,-provision,-rubygems,-sunstone}
-        {% if ee_version is version('5.13', '>=') %}
+        {% if ee_version is version('6.0', '>=') %}
         apt-get -q install -y opennebula-fireedge
         {% endif %}
 
@@ -120,7 +120,7 @@
         set -o errexit
         systemctl enable opennebula{,-flow,-gate,-sunstone}
         systemctl restart opennebula{,-flow,-gate,-sunstone}
-        {% if ee_version is version('5.13', '>=') %}
+        {% if ee_version is version('6.0', '>=') %}
         systemctl enable opennebula-fireedge
         systemctl restart opennebula-fireedge
         {% endif %}
@@ -131,7 +131,11 @@
   tasks:
     - shell: |
         set -o errexit
+        {% if ee_version is version('6.0', '>=') %}
         apt-get -q install -y opennebula-node-kvm
+        {% else %}
+        apt-get -q install -y opennebula-node
+        {% endif %}
 
     - shell: |
         set -o errexit
