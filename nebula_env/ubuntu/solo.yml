@@ -118,6 +118,14 @@
 
     - shell: |
         set -o errexit
+        gawk -i inplace -f- /etc/one/monitord.conf <<'EOF'
+        BEGIN { update = "MONITOR_ADDRESS = \"{{ ansible_host }}\"," }
+        /^NETWORK = /,/^\]/ { if ($1 == "MONITOR_ADDRESS") $0 = update }
+        { print }
+        EOF
+
+    - shell: |
+        set -o errexit
         systemctl enable opennebula{,-flow,-gate,-sunstone}
         systemctl restart opennebula{,-flow,-gate,-sunstone}
         {% if ee_version is version('6.0', '>=') %}
