@@ -21,4 +21,3 @@ raft: $(SELF)/hosts.ini $(SELF)/raft.yml
 
 apache2: $(SELF)/hosts.ini $(SELF)/apache2.yml
 	cd $(SELF)/ && ansible-playbook -vv -i $^
-

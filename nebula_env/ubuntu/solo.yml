@@ -18,7 +18,7 @@
     - copy:
         dest: /etc/apt/sources.list.d/opennebula.list
         content: |
-          deb https://{{ ee_token }}@enterprise.opennebula.io/repo/{{ ee_version }}/Ubuntu/20.04 stable opennebula
+          deb https://{{ ee_token }}@enterprise.opennebula.io/repo/{{ ee_version }}/Ubuntu/{{ ubuntu_version | default('20.04') }} stable opennebula
 
     - shell: |
         set -o errexit
