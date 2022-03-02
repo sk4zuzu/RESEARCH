@@ -140,10 +140,19 @@
     - shell: |
         set -o errexit
         {% if ee_version is version('6.0', '>=') %}
-        apt-get -q install -y opennebula-node-kvm
+        apt-get -q install -y uuid-runtime opennebula-node-kvm
         {% else %}
-        apt-get -q install -y opennebula-node
+        apt-get -q install -y uuid-runtime opennebula-node
         {% endif %}
+
+    - shell: |
+        set -o errexit
+        gawk -i inplace -f- /etc/libvirt/libvirtd.conf <<'EOF'
+        BEGIN { "uuidgen" | getline uuid; update = "host_uuid = \"" uuid "\"" }
+        /^#*host_uuid = "00000000-0000-0000-0000-000000000000"/ { $0 = update; found = 1 }
+        { print }
+        END { if (!found) print update >>FILENAME }
+        EOF
 
     - shell: |
         set -o errexit
