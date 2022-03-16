@@ -185,6 +185,52 @@
       args:
         creates: /etc/systemd/network/br0.network
 
+    - shell: |
+        set -o errexit
+        cat >/etc/systemd/network/br1.netdev <<'EOF'
+        [NetDev]
+        Name=br1
+        Kind=bridge
+        EOF
+        cat >/etc/systemd/network/br1.network <<'EOF'
+        [Match]
+        Name=br1
+        [Network]
+        Address=172.20.1.1/24
+        IPForward=ipv4
+        IPMasquerade=yes
+        ConfigureWithoutCarrier=yes
+        [Link]
+        ActivationPolicy=always-up
+        EOF
+        systemctl enable systemd-networkd
+        systemctl restart systemd-networkd
+      args:
+        creates: /etc/systemd/network/br1.network
+
+    - shell: |
+        set -o errexit
+        cat >/etc/systemd/network/br2.netdev <<'EOF'
+        [NetDev]
+        Name=br2
+        Kind=bridge
+        EOF
+        cat >/etc/systemd/network/br2.network <<'EOF'
+        [Match]
+        Name=br2
+        [Network]
+        Address=172.20.2.1/24
+        IPForward=ipv4
+        IPMasquerade=yes
+        ConfigureWithoutCarrier=yes
+        [Link]
+        ActivationPolicy=always-up
+        EOF
+        systemctl enable systemd-networkd
+        systemctl restart systemd-networkd
+      args:
+        creates: /etc/systemd/network/br2.network
+
 - hosts: opennebula[0]
   module_defaults: *module_defaults
   environment: *environment
@@ -212,6 +258,56 @@
         fi
         if ! onevnet show service; then
           onevntemplate instantiate service --name service
+        fi
+
+    - copy:
+        dest: /tmp/public_vnet
+        content: |
+          NAME   = "public"
+          VN_MAD = "bridge"
+          BRIDGE = "br1"
+          AR = [
+            TYPE = "IP4",
+            IP   = "172.20.1.100",
+            SIZE = "100" ]
+          NETWORK_ADDRESS = "172.20.1.0"
+          NETWORK_MASK    = "255.255.255.0"
+          GATEWAY         = "172.20.1.1"
+          DNS             = "1.1.1.1"
+          SEARCH_DOMAIN   = "ubuntu.lh"
+
+    - shell: |
+        set -o errexit
+        if ! onevntemplate show public; then
+          onevntemplate create /tmp/public_vnet
+        fi
+        if ! onevnet show public; then
+          onevntemplate instantiate public --name public
+        fi
+
+    - copy:
+        dest: /tmp/private_vnet
+        content: |
+          NAME   = "private"
+          VN_MAD = "bridge"
+          BRIDGE = "br2"
+          AR = [
+            TYPE = "IP4",
+            IP   = "172.20.2.100",
+            SIZE = "100" ]
+          NETWORK_ADDRESS = "172.20.2.0"
+          NETWORK_MASK    = "255.255.255.0"
+          GATEWAY         = "172.20.2.1"
+          DNS             = "1.1.1.1"
+          SEARCH_DOMAIN   = "ubuntu.lh"
+
+    - shell: |
+        set -o errexit
+        if ! onevntemplate show private; then
+          onevntemplate create /tmp/private_vnet
+        fi
+        if ! onevnet show private; then
+          onevntemplate instantiate private --name private
         fi
 
     - shell: |
