@@ -1,0 +1,129 @@
+---
+- hosts: 127.0.0.1
+  connection: local
+  become: false
+  tasks:
+    - file:
+        path: "{{ playbook_dir }}/.ssh/"
+        state: directory
+        mode: u=rwx,g=rx,o=
+
+    - copy:
+        dest: "{{ playbook_dir }}/.ssh/config"
+        mode: u=rw,g=r,o=
+        content: |
+          Host {{ hostvars[groups.bastion[0]].ansible_host }}
+            Hostname {{ hostvars[groups.bastion[0]].ansible_host }}
+            User {{ hostvars[groups.bastion[0]].ansible_user }}
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            ForwardAgent yes
+
+          {% for host in (groups.fe + groups.be) | unique -%}
+
+          Host {{ hostvars[host].ansible_host }}
+            Hostname {{ hostvars[host].ansible_host }}
+            User {{ hostvars[host].ansible_user }}
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            ForwardAgent yes
+            ProxyJump {{ hostvars[groups.bastion[0]].ansible_host }}
+
+          {% endfor %}
+
+- hosts: fe:be
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  gather_facts: true
+  tasks:
+    - shell: |
+        set -o errexit -o pipefail
+        apk --no-cache add iproute2 iptables ipvsadm
+
+- hosts: be
+  module_defaults: *module_defaults
+  tasks:
+    - file:
+        path: /etc/init.d/
+        state: directory
+        mode: u=rwx,go=rx
+
+    - copy:
+        dest: /var/tmp/index.html
+        mode: u=rw,go=r
+        content: |
+          {{ ansible_host }}
+
+    - copy:
+        dest: /etc/init.d/p3http
+        mode: u=rwx,go=rx
+        content: |
+          #!/sbin/openrc-run
+
+          P3HTTP_LOGFILE="${P3HTTP_LOGFILE:-/var/log/${RC_SVCNAME}.log}"
+
+          supervisor=supervise-daemon
+
+          name="p3http"
+          command="/usr/bin/python3"
+          command_args="-m http.server --directory /var/tmp/ >>${P3HTTP_LOGFILE} 2>&1"
+
+          output_log="${P3HTTP_LOGFILE}"
+          error_log="${P3HTTP_LOGFILE}"
+
+          pidfile="/run/p3http.pid"
+          respawn_delay=5
+          respawn_max=0
+
+          rc_ulimit="${P3HTTP_ULIMIT:--c unlimited -n 1048576 -u unlimited}"
+
+          depend() {
+              after firewall
+          }
+
+          start_pre() {
+              checkpath -f -m 0644 -o root:root "${P3HTTP_LOGFILE}"
+          }
+
+    - service:
+        name: p3http
+        enabled: true
+        state: started
+
+    - lineinfile:
+        path: /etc/iproute2/rt_tables
+        regex: "^{{ _line }}$"
+        line: "{{ _line }}"
+      vars:
+        _line: "80 lvs"
+
+    - shell: |
+        set -o errexit -o pipefail
+        ip route replace default via 172.16.2.10 table lvs
+        ip rule flush table lvs
+        ip rule add from {{ ansible_host }} sport 8000 table lvs
+
+- hosts: fe[0]
+  module_defaults: *module_defaults
+  tasks:
+    - shell: |
+        set -o errexit -o pipefail
+        iptables -F -t nat
+        iptables -F -t mangle
+        iptables -F
+        iptables -X
+
+    - shell: |
+        set -o errexit -o pipefail
+        ipvsadm --clear
+
+    - shell: |
+        set -o errexit -o pipefail
+        iptables -t mangle -A PREROUTING -d {{ ansible_host }} -m tcp -p tcp --dport 8888 -j MARK --set-mark 8888
+
+    - shell: |
+        set -o errexit -o pipefail
+        ipvsadm -A -f 8888 -s wlc
+        {% for host in groups.be | map('extract', hostvars, ['ansible_host']) | list %}
+        ipvsadm -a -f 8888 -r {{ host }}:8000 -m -w 1
+        {% endfor %}
