@@ -40,6 +40,11 @@
         set -o errexit -o pipefail
         apk --no-cache add iproute2 iptables ipvsadm
 
+    - set_fact:
+        _vip: "172.16.1.69"
+        _port: 8000
+        _mark: 8000
+
 - hosts: be
   module_defaults: *module_defaults
   tasks:
@@ -90,22 +95,43 @@
         enabled: true
         state: started
 
-    - lineinfile:
-        path: /etc/iproute2/rt_tables
-        regex: "^{{ _line }}$"
-        line: "{{ _line }}"
-      vars:
-        _line: "80 lvs"
+    - shell: |
+        set -o errexit -o pipefail
+        iptables -F -t nat
+        iptables -F -t mangle
+        iptables -F
+        iptables -X
 
     - shell: |
         set -o errexit -o pipefail
-        ip route replace default via 172.16.2.10 table lvs
-        ip rule flush table lvs
-        ip rule add from {{ ansible_host }} sport 8000 table lvs
+        arptables -F
+
+    - shell: |
+        set -o errexit -o pipefail
+        arptables -A INPUT  -d {{ _vip }} -j DROP
+        arptables -A OUTPUT -s {{ _vip }} -j mangle --mangle-ip-s {{ ansible_host }}
+
+    - shell: |
+        set -o errexit -o pipefail
+
+        VIP_IPV4_TEST=$(ip address show dev eth0 to {{ _vip }})
+
+        if [[ -z "$VIP_IPV4_TEST" ]]; then
+          ip address add dev eth0 {{ _vip }}/24
+        fi
 
 - hosts: fe[0]
   module_defaults: *module_defaults
   tasks:
+    - shell: |
+        set -o errexit -o pipefail
+
+        VIP_IPV4_TEST=$(ip address show dev eth0 to {{ _vip }})
+
+        if [[ -z "$VIP_IPV4_TEST" ]]; then
+          ip address add dev eth0 {{ _vip }}/24
+        fi
+
     - shell: |
         set -o errexit -o pipefail
         iptables -F -t nat
@@ -119,11 +145,11 @@
 
     - shell: |
         set -o errexit -o pipefail
-        iptables -t mangle -A PREROUTING -d {{ ansible_host }} -m tcp -p tcp --dport 8888 -j MARK --set-mark 8888
+        iptables -t mangle -A PREROUTING -d {{ _vip }} -m tcp -p tcp --dport {{ _port }} -j MARK --set-mark {{ _mark }}
 
     - shell: |
         set -o errexit -o pipefail
-        ipvsadm -A -f 8888 -s wlc
+        ipvsadm -A -f {{ _mark }} -s rr
         {% for host in groups.be | map('extract', hostvars, ['ansible_host']) | list %}
-        ipvsadm -a -f 8888 -r {{ host }}:8000 -m -w 1
+        ipvsadm -a -f {{ _mark }} -r {{ host }}:{{ _port }} -g
         {% endfor %}

@@ -20,26 +20,20 @@ variable "resources" {
 }
 
 variable "network" {
-  type = list(object({
+  type = object({
     name    = string
     mode    = string
     domain  = string
     subnet  = string
     macaddr = string
-  }))
-  default = [{
-    name    = "d1nat"
-    mode    = "nat"
-    domain  = "d1nat.lvs"
-    subnet  = "172.16.1.0/24"
-    macaddr = "52:54:16:01:00:%02x"
-  },{
+  })
+  default = {
     name    = "d1route"
     mode    = "route"
     domain  = "d1route.lvs"
-    subnet  = "172.16.2.0/24"
-    macaddr = "52:54:16:02:00:%02x"
-  }]
+    subnet  = "172.16.1.0/24"
+    macaddr = "52:54:16:01:00:%02x"
+  }
 }
 
 variable "storage" {
@@ -71,11 +65,10 @@ resource "libvirt_volume" "d1" {
 }
 
 resource "libvirt_network" "d1" {
-  count     = length(var.network)
-  name      = var.network[count.index].name
-  mode      = var.network[count.index].mode
-  domain    = var.network[count.index].domain
-  addresses = [ var.network[count.index].subnet ]
+  name      = var.network.name
+  mode      = var.network.mode
+  domain    = var.network.domain
+  addresses = [ var.network.subnet ]
 }
 
 resource "libvirt_cloudinit_disk" "d1" {
@@ -92,18 +85,11 @@ resource "libvirt_cloudinit_disk" "d1" {
   ethernets:
     eth0:
       addresses:
-        - ${cidrhost(var.network[0].subnet, 10)}/${split("/", var.network[0].subnet)[1]}
+        - ${cidrhost(var.network.subnet, 10)}/${split("/", var.network.subnet)[1]}
       dhcp4: false
       dhcp6: false
-      gateway4: ${cidrhost(var.network[0].subnet, 1)}
-      macaddress: '${lower(format(var.network[0].macaddr, 10))}'
-    eth1:
-      addresses:
-        - ${cidrhost(var.network[1].subnet, 10)}/${split("/", var.network[1].subnet)[1]}
-      dhcp4: false
-      dhcp6: false
-      gateway4: ${cidrhost(var.network[1].subnet, 1)}
-      macaddress: '${lower(format(var.network[1].macaddr, 10))}'
+      gateway4: ${cidrhost(var.network.subnet, 1)}
+      macaddress: '${lower(format(var.network.macaddr, 10))}'
   EOF
 
   user_data = <<-EOF
@@ -148,12 +134,9 @@ resource "libvirt_domain" "d1" {
     mode = "host-passthrough"
   }
 
-  dynamic "network_interface" {
-    for_each = var.network
-    content {
-      network_name   = network_interface.value["name"]
-      wait_for_lease = false
-    }
+  network_interface {
+    network_name   = var.network.name
+    wait_for_lease = false
   }
 
   console {

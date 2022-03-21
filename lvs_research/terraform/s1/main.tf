@@ -29,8 +29,8 @@ variable "network" {
   default = {
     name    = "d1route"
     domain  = "d1route.lvs"
-    subnet  = "172.16.2.0/24"
-    macaddr = "52:54:16:02:00:%02x"
+    subnet  = "172.16.1.0/24"
+    macaddr = "52:54:16:01:00:%02x"
   }
 }
 

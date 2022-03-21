@@ -27,8 +27,8 @@ variable "network" {
     macaddr = string
   })
   default = {
-    name    = "d1nat"
-    domain  = "d1nat.lvs"
+    name    = "d1route"
+    domain  = "d1route.lvs"
     subnet  = "172.16.1.0/24"
     macaddr = "52:54:16:01:00:%02x"
   }

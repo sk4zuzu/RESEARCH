@@ -72,7 +72,7 @@ c1-ssh:
 	@ssh $(SSH_OPTIONS) alpine@10.11.12.13 -t ssh $(SSH_OPTIONS) alpine@172.16.1.11
 
 s1-ssh:
-	@ssh $(SSH_OPTIONS) alpine@10.11.12.13 -t ssh $(SSH_OPTIONS) alpine@172.16.2.12
+	@ssh $(SSH_OPTIONS) alpine@10.11.12.13 -t ssh $(SSH_OPTIONS) alpine@172.16.1.12
 
 s2-ssh:
-	@ssh $(SSH_OPTIONS) alpine@10.11.12.13 -t ssh $(SSH_OPTIONS) alpine@172.16.2.13
+	@ssh $(SSH_OPTIONS) alpine@10.11.12.13 -t ssh $(SSH_OPTIONS) alpine@172.16.1.13
