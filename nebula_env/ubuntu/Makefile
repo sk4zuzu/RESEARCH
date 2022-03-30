@@ -16,6 +16,9 @@ solo: $(SELF)/hosts.ini $(SELF)/solo.yml
 nspawn: $(SELF)/nspawn.ini $(SELF)/solo.yml
 	cd $(SELF)/ && ansible-playbook -vv -i $^
 
+equinix: $(SELF)/equinix.ini $(SELF)/solo.yml
+	cd $(SELF)/ && ansible-playbook -vv -i $^
+
 raft: $(SELF)/hosts.ini $(SELF)/raft.yml
 	cd $(SELF)/ && ansible-playbook -vv -i $^
 

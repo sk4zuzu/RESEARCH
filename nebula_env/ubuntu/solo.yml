@@ -162,28 +162,28 @@
           virsh net-undefine default
         fi
 
-    - shell: |
-        set -o errexit
-        cat >/etc/systemd/network/br0.netdev <<'EOF'
-        [NetDev]
-        Name=br0
-        Kind=bridge
-        EOF
-        cat >/etc/systemd/network/br0.network <<'EOF'
-        [Match]
-        Name=br0
-        [Network]
-        Address=172.20.0.1/24
-        IPForward=ipv4
-        IPMasquerade=yes
-        ConfigureWithoutCarrier=yes
-        [Link]
-        ActivationPolicy=always-up
-        EOF
-        systemctl enable systemd-networkd
-        systemctl restart systemd-networkd
-      args:
-        creates: /etc/systemd/network/br0.network
+    #- shell: |
+    #    set -o errexit
+    #    cat >/etc/systemd/network/br0.netdev <<'EOF'
+    #    [NetDev]
+    #    Name=br0
+    #    Kind=bridge
+    #    EOF
+    #    cat >/etc/systemd/network/br0.network <<'EOF'
+    #    [Match]
+    #    Name=br0
+    #    [Network]
+    #    Address=172.20.0.1/24
+    #    IPForward=ipv4
+    #    IPMasquerade=yes
+    #    ConfigureWithoutCarrier=yes
+    #    [Link]
+    #    ActivationPolicy=always-up
+    #    EOF
+    #    systemctl enable systemd-networkd
+    #    systemctl restart systemd-networkd
+    #  args:
+    #    creates: /etc/systemd/network/br0.network
 
     - shell: |
         set -o errexit
@@ -198,7 +198,7 @@
         [Network]
         Address=172.20.1.1/24
         IPForward=ipv4
-        IPMasquerade=yes
+        IPMasquerade=no
         ConfigureWithoutCarrier=yes
         [Link]
         ActivationPolicy=always-up
@@ -221,7 +221,7 @@
         [Network]
         Address=172.20.2.1/24
         IPForward=ipv4
-        IPMasquerade=yes
+        IPMasquerade=no
         ConfigureWithoutCarrier=yes
         [Link]
         ActivationPolicy=always-up
@@ -235,6 +235,22 @@
   module_defaults: *module_defaults
   environment: *environment
   tasks:
+    #- copy:
+    #    dest: /tmp/service_vnet
+    #    content: |
+    #      NAME   = "service"
+    #      VN_MAD = "bridge"
+    #      BRIDGE = "br0"
+    #      AR = [
+    #        TYPE = "IP4",
+    #        IP   = "172.20.0.100",
+    #        SIZE = "100" ]
+    #      NETWORK_ADDRESS = "172.20.0.0"
+    #      NETWORK_MASK    = "255.255.255.0"
+    #      GATEWAY         = "172.20.0.1"
+    #      DNS             = "1.1.1.1"
+    #      SEARCH_DOMAIN   = "ubuntu.lh"
+
     - copy:
         dest: /tmp/service_vnet
         content: |
@@ -243,11 +259,11 @@
           BRIDGE = "br0"
           AR = [
             TYPE = "IP4",
-            IP   = "172.20.0.100",
-            SIZE = "100" ]
-          NETWORK_ADDRESS = "172.20.0.0"
+            IP   = "10.2.11.200",
+            SIZE = "48" ]
+          NETWORK_ADDRESS = "10.2.11.0"
           NETWORK_MASK    = "255.255.255.0"
-          GATEWAY         = "172.20.0.1"
+          GATEWAY         = "10.2.11.1"
           DNS             = "1.1.1.1"
           SEARCH_DOMAIN   = "ubuntu.lh"
 
