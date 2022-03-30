@@ -127,7 +127,7 @@ class Vnf < One
         MEMORY = "512"
         MEMORY_UNIT_COST = "MB"
         NIC = [
-          NETWORK = "public",
+          NETWORK = "private",
           SECURITY_GROUPS = "0" ]
         NIC_DEFAULT = [
           MODEL = "virtio" ]
@@ -271,7 +271,8 @@ class Svc
             {
               "name": "vnf",
               "cardinality": 1,
-              "vm_template_contents": "NIC=[NAME=\"_NIC0\",NETWORK_ID=\"$Public\"]\nNIC=[NAME=\"_NIC1\",NETWORK_ID=\"$Private\"]\n",
+              #"vm_template_contents": "NIC=[NAME=\"_NIC0\",NETWORK_ID=\"$Public\"]\nNIC=[NAME=\"_NIC1\",NETWORK_ID=\"$Private\"]\n",
+              "vm_template_contents": "NIC=[NAME=\"_NIC0\",NETWORK_ID=\"$Private\"]\n",
               "vm_template": vm_template_ids[:vnf].to_s,
               "elasticity_policies": [],
               "scheduled_policies": []
@@ -279,7 +280,7 @@ class Svc
             {
               "name": "master",
               "cardinality": 1,
-              "vm_template_contents": "NIC=[NAME=\"NIC0\",NETWORK_ID=\"$Private\"]\n",
+              "vm_template_contents": "NIC=[NAME=\"_NIC0\",NETWORK_ID=\"$Private\"]\n",
               "vm_template": vm_template_ids[:k8s].to_s,
               "parents": ["vnf"],
               "elasticity_policies": [],
@@ -288,7 +289,7 @@ class Svc
             {
               "name": "worker",
               "cardinality": 1,
-              "vm_template_contents": "NIC=[NAME=\"NIC0\",NETWORK_ID=\"$Private\"]\n",
+              "vm_template_contents": "NIC=[NAME=\"_NIC0\",NETWORK_ID=\"$Private\"]\n",
               "vm_template": vm_template_ids[:k8s].to_s,
               "parents": ["master"],
               "elasticity_policies": [],
@@ -297,7 +298,7 @@ class Svc
             {
               "name": "storage",
               "cardinality": 1,
-              "vm_template_contents": "NIC=[NAME=\"NIC0\",NETWORK_ID=\"$Private\"]\n",
+              "vm_template_contents": "NIC=[NAME=\"_NIC0\",NETWORK_ID=\"$Private\"]\n",
               "vm_template": vm_template_ids[:k8s].to_s,
               "parents": ["master"],
               "elasticity_policies": [],
@@ -305,7 +306,7 @@ class Svc
             }
           ],
           "networks": {
-            "Public": "M|network|Public| |id:",
+            #"Public": "M|network|Public| |id:",
             "Private": "M|network|Private| |id:"
           },
           "ready_status_gate": true
