@@ -13,8 +13,7 @@
     - shell: |
         set -o errexit
         apt-get -q install -y memcached apache2 libapache2-mod-passenger
-        systemctl enable memcached
-        systemctl enable apache2
+        systemctl enable memcached apache2 --now
 
     - shell: |
         set -o errexit
@@ -26,6 +25,16 @@
         END { if (!found) print update >>FILENAME }
         EOF
         chmod ugo+x /var/lib/one/{,sunstone/}
+
+    - vars: { _endpoint: "http://{{ hostvars[inventory_hostname].ansible_fqdn }}" }
+      shell: |
+        set -o errexit
+        gawk -i inplace -f- /etc/one/sunstone-server.conf <<'EOF'
+        BEGIN { update = ":public_fireedge_endpoint: {{ _endpoint }}" }
+        /^#*:public_fireedge_endpoint:/ { $0 = update; found = 1 }
+        { print }
+        END { if (!found) print update >>FILENAME }
+        EOF
 
     - shell: |
         set -o errexit
@@ -46,8 +55,33 @@
              Require all granted
              Options FollowSymLinks
           </Directory>
+
+          ProxyRequests     off
+          ProxyPreserveHost on
+
+          # no proxy for /error/ (Apache HTTPd errors messages)
+          ProxyPass /error/ !
+
+          ProxyPass /fireedge http://localhost:2616/fireedge
+          ProxyPassReverse /fireedge http://localhost:2616/fireedge
+
+          RewriteEngine on
+          RewriteCond %{HTTP:Upgrade} websocket [NC]
+          RewriteCond %{HTTP:Connection} upgrade [NC]
+          RewriteRule ^/fireedge/?(.*) "ws://localhost:2616/fireedge/$1" [P,L]
+
+          <Location /fireedge>
+              Order deny,allow
+              Allow from all
+          </Location>
         </VirtualHost>
         EOF
+
+        a2enmod headers
+        a2enmod proxy
+        a2enmod proxy_http
+        a2enmod proxy_wstunnel
+        a2enmod rewrite
 
         a2dissite 000-default
         a2dissite default-ssl
