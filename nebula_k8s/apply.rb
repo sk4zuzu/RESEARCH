@@ -46,7 +46,7 @@ class One
         PERSISTENT="NO"
         FORMAT="qcow2"
         DEV_PREFIX="vd"
-        SOURCE="/svc/img/#{find_latest_qcow2}"
+        SOURCE="/var/lib/one/datastores/img/#{find_latest_qcow2}"
         SIZE="20480"
         CONTENTS
 
@@ -143,14 +143,14 @@ class Vnf < One
           ONEAPP_VNF_DNS_INTERFACES = "O|text|DNS - Listening Interfaces| |",
           ONEAPP_VNF_DNS_MAX_CACHE_TTL = "O|number|*** DNS - Maximum Caching Time [sec]| |3600",
           ONEAPP_VNF_DNS_USE_ROOTSERVERS = "O|boolean|*** DNS - Use Rootservers| |YES",
-          ONEAPP_VNF_KEEPALIVED_ENABLED = "O|boolean|ONEAPP_VNF_KEEPALIVED_ENABLED| |",
+          ONEAPP_VNF_KEEPALIVED_ENABLED = "O|boolean|ONEAPP_VNF_KEEPALIVED_ENABLED| |YES",
           ONEAPP_VNF_KEEPALIVED_VRID = "O|text|ONEAPP_VNF_KEEPALIVED_VRID| |",
           ONEAPP_VNF_LB0_IP = "O|text|ONEAPP_VNF_LB0_IP| |",
-          ONEAPP_VNF_LB0_PORT = "O|number|ONEAPP_VNF_LB0_PORT| |",
-          ONEAPP_VNF_LB0_METHOD = "O|text|ONEAPP_VNF_LB0_METHOD| |",
-          ONEAPP_VNF_LB0_PROTOCOL = "O|text|ONEAPP_VNF_LB0_PROTOCOL| |",
+          ONEAPP_VNF_LB0_PORT = "O|number|ONEAPP_VNF_LB0_PORT| |6443",
+          ONEAPP_VNF_LB0_METHOD = "O|text|ONEAPP_VNF_LB0_METHOD| |dr",
+          ONEAPP_VNF_LB0_PROTOCOL = "O|text|ONEAPP_VNF_LB0_PROTOCOL| |tcp",
           ONEAPP_VNF_LB0_SCHEDULER = "O|text|ONEAPP_VNF_LB0_SCHEDULER| |",
-          ONEAPP_VNF_LB_ENABLED = "O|boolean|ONEAPP_VNF_LB_ENABLED| |",
+          ONEAPP_VNF_LB_ENABLED = "O|boolean|ONEAPP_VNF_LB_ENABLED| |YES",
           ONEAPP_VNF_LB_REFRESH_RATE = "O|number|ONEAPP_VNF_LB_REFRESH_RATE| |",
           ONEAPP_VNF_NAT4_ENABLED = "O|boolean|Enable NAT| |",
           ONEAPP_VNF_NAT4_INTERFACES_OUT = "O|text|NAT - Outgoing Interfaces| |",
@@ -223,8 +223,8 @@ class K8s < One
         USER_INPUTS=[
           ONEAPP_K8S_LOADBALANCER_CONFIG="O|text64|Custom LoadBalancer config",
           ONEAPP_K8S_LOADBALANCER_RANGE="O|text|LoadBalancer IP range (default none)",
-          ONEAPP_K8S_PODS_NETWORK="O|text|Pods network in CIDR (default 10.244.0.0/16)",
-          ONEAPP_K8S_PORT="O|text|Kubernetes API port (default 6443)" ]
+          ONEAPP_K8S_PODS_NETWORK="O|text|Pods network in CIDR (default 10.244.0.0/16)| |10.244.0.0/16",
+          ONEAPP_K8S_PORT="O|text|Kubernetes API port (default 6443)| |6443" ]
         VCPU="2"
         SCHED_REQUIREMENTS = "HYPERVISOR!=\\\"vcenter\\\""
         NIC = [
@@ -271,7 +271,6 @@ class Svc
             {
               "name": "vnf",
               "cardinality": 1,
-              #"vm_template_contents": "NIC=[NAME=\"_NIC0\",NETWORK_ID=\"$Public\"]\nNIC=[NAME=\"_NIC1\",NETWORK_ID=\"$Private\"]\n",
               "vm_template_contents": "NIC=[NAME=\"_NIC0\",NETWORK_ID=\"$Private\"]\n",
               "vm_template": vm_template_ids[:vnf].to_s,
               "elasticity_policies": [],
@@ -288,7 +287,7 @@ class Svc
             },
             {
               "name": "worker",
-              "cardinality": 1,
+              "cardinality": 0,
               "vm_template_contents": "NIC=[NAME=\"_NIC0\",NETWORK_ID=\"$Private\"]\n",
               "vm_template": vm_template_ids[:k8s].to_s,
               "parents": ["master"],
@@ -297,7 +296,7 @@ class Svc
             },
             {
               "name": "storage",
-              "cardinality": 1,
+              "cardinality": 0,
               "vm_template_contents": "NIC=[NAME=\"_NIC0\",NETWORK_ID=\"$Private\"]\n",
               "vm_template": vm_template_ids[:k8s].to_s,
               "parents": ["master"],
