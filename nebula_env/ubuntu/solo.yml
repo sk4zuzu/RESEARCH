@@ -133,6 +133,29 @@
         systemctl restart opennebula-fireedge
         {% endif %}
 
+- hosts: opennebula[0]
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        onedatastore update 1 /dev/fd/0 <<'EOF'
+        DS_MAD="fs"
+        TM_MAD="qcow2"
+        EOF
+        onedatastore update 0 /dev/fd/0 <<'EOF'
+        TM_MAD="qcow2"
+        EOF
+
+    - shell: |
+        set -o errexit
+        gawk -i inplace -f- /var/lib/one/remotes/etc/vmm/kvm/kvmrc <<'EOF'
+        BEGIN { update = "MIGRATE_OPTIONS=--unsafe" }
+        /^#*MIGRATE_OPTIONS=/ { $0 = update; found = 1 }
+        { print }
+        END { if (!found) print update >>FILENAME }
+        EOF
+
 - hosts: opennebula_node_kvm
   module_defaults: *module_defaults
   environment: *environment
