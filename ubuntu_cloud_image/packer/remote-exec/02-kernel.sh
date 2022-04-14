@@ -20,10 +20,11 @@ EOF
 
 apt-get -q install -y linux-image-generic
 
-awk -i inplace -f- /etc/default/grub <<'EOF'
-/^GRUB_DEFAULT=/ { $0 = "GRUB_DEFAULT=\"3>3\"" }
-{ print }
-EOF
+apt-get -q purge -y 'linux-*-kvm'
+
+apt-get -q clean
+
+rm -rf /var/lib/apt/lists/*
 
 update-grub
 

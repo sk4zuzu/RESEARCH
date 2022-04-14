@@ -33,12 +33,9 @@ apt-get -q update
 
 policy_rc_d_disable
 
-apt-get -q remove -y --purge \
-    unattended-upgrades
-
 apt-get -q upgrade -y
 
-apt-get -q install -y --no-install-recommends \
+apt-get -q install -y \
     apt-transport-https \
     ca-certificates \
     curl \
@@ -50,6 +47,9 @@ apt-get -q install -y --no-install-recommends \
     net-tools iproute2 netcat nmap \
     iftop nethogs \
     jq
+
+apt-get -q purge -y \
+    unattended-upgrades
 
 policy_rc_d_enable
 
