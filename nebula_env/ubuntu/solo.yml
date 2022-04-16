@@ -1,5 +1,5 @@
 ---
-- hosts: opennebula[0]:opennebula_node_kvm
+- hosts: opennebula[0]:kvm:firecracker:lxc
   module_defaults: &module_defaults
     shell: { executable: /bin/bash }
   environment: &environment
@@ -7,7 +7,7 @@
   gather_facts: true
   tasks: []
 
-- hosts: opennebula[0]:opennebula_node_kvm
+- hosts: opennebula[0]:kvm:firecracker:lxc
   module_defaults: *module_defaults
   environment: *environment
   tasks:
@@ -156,7 +156,7 @@
         END { if (!found) print update >>FILENAME }
         EOF
 
-- hosts: opennebula_node_kvm
+- hosts: kvm
   module_defaults: *module_defaults
   environment: *environment
   tasks:
@@ -185,6 +185,26 @@
           virsh net-undefine default
         fi
 
+- hosts: lxc
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        apt-get -q install -y opennebula-node-lxc
+
+- hosts: firecracker
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        apt-get -q install -y opennebula-node-firecracker
+
+- hosts: kvm:firecracker:lxc
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
     #- shell: |
     #    set -o errexit
     #    cat >/etc/systemd/network/br0.netdev <<'EOF'
@@ -231,123 +251,43 @@
       args:
         creates: /etc/systemd/network/br1.network
 
-    - shell: |
-        set -o errexit
-        cat >/etc/systemd/network/br2.netdev <<'EOF'
-        [NetDev]
-        Name=br2
-        Kind=bridge
-        EOF
-        cat >/etc/systemd/network/br2.network <<'EOF'
-        [Match]
-        Name=br2
-        [Network]
-        Address=172.20.2.1/24
-        IPForward=ipv4
-        IPMasquerade=no
-        ConfigureWithoutCarrier=yes
-        [Link]
-        ActivationPolicy=always-up
-        EOF
-        systemctl enable systemd-networkd
-        systemctl restart systemd-networkd
-      args:
-        creates: /etc/systemd/network/br2.network
-
 - hosts: opennebula[0]
   module_defaults: *module_defaults
   environment: *environment
   tasks:
-    #- copy:
-    #    dest: /tmp/service_vnet
-    #    content: |
-    #      NAME   = "service"
-    #      VN_MAD = "bridge"
-    #      BRIDGE = "br0"
-    #      AR = [
-    #        TYPE = "IP4",
-    #        IP   = "172.20.0.100",
-    #        SIZE = "100" ]
-    #      NETWORK_ADDRESS = "172.20.0.0"
-    #      NETWORK_MASK    = "255.255.255.0"
-    #      GATEWAY         = "172.20.0.1"
-    #      DNS             = "1.1.1.1"
-    #      SEARCH_DOMAIN   = "ubuntu.lh"
-
-    - copy:
-        dest: /tmp/service_vnet
-        content: |
-          NAME   = "service"
-          VN_MAD = "bridge"
-          BRIDGE = "br0"
-          AR = [
-            TYPE = "IP4",
-            IP   = "10.2.11.200",
-            SIZE = "48" ]
-          NETWORK_ADDRESS = "10.2.11.0"
-          NETWORK_MASK    = "255.255.255.0"
-          GATEWAY         = "10.2.11.1"
-          DNS             = "1.1.1.1"
-          SEARCH_DOMAIN   = "ubuntu.lh"
+    - shell: |
+        set -o errexit
+        onevnet show "skynet" || onevnet create /dev/fd/0 <<'EOF'
+        NAME   = "skynet"
+        VN_MAD = "bridge"
+        BRIDGE = "br0"
+        AR = [
+          TYPE = "IP4",
+          IP   = "10.2.11.200",
+          SIZE = "48" ]
+        NETWORK_ADDRESS = "10.2.11.0"
+        NETWORK_MASK    = "255.255.255.0"
+        GATEWAY         = "10.2.11.1"
+        DNS             = "1.1.1.1"
+        SEARCH_DOMAIN   = "skynet.lh"
+        EOF
 
     - shell: |
         set -o errexit
-        if ! onevntemplate show service; then
-          onevntemplate create /tmp/service_vnet
-        fi
-        if ! onevnet show service; then
-          onevntemplate instantiate service --name service
-        fi
-
-    - copy:
-        dest: /tmp/public_vnet
-        content: |
-          NAME   = "public"
-          VN_MAD = "bridge"
-          BRIDGE = "br1"
-          AR = [
-            TYPE = "IP4",
-            IP   = "172.20.1.100",
-            SIZE = "100" ]
-          NETWORK_ADDRESS = "172.20.1.0"
-          NETWORK_MASK    = "255.255.255.0"
-          GATEWAY         = "172.20.1.1"
-          DNS             = "1.1.1.1"
-          SEARCH_DOMAIN   = "ubuntu.lh"
-
-    - shell: |
-        set -o errexit
-        if ! onevntemplate show public; then
-          onevntemplate create /tmp/public_vnet
-        fi
-        if ! onevnet show public; then
-          onevntemplate instantiate public --name public
-        fi
-
-    - copy:
-        dest: /tmp/private_vnet
-        content: |
-          NAME   = "private"
-          VN_MAD = "bridge"
-          BRIDGE = "br2"
-          AR = [
-            TYPE = "IP4",
-            IP   = "172.20.2.100",
-            SIZE = "100" ]
-          NETWORK_ADDRESS = "172.20.2.0"
-          NETWORK_MASK    = "255.255.255.0"
-          GATEWAY         = "172.20.2.1"
-          DNS             = "1.1.1.1"
-          SEARCH_DOMAIN   = "ubuntu.lh"
-
-    - shell: |
-        set -o errexit
-        if ! onevntemplate show private; then
-          onevntemplate create /tmp/private_vnet
-        fi
-        if ! onevnet show private; then
-          onevntemplate instantiate private --name private
-        fi
+        onevnet show "legion" || onevnet create /dev/fd/0 <<'EOF'
+        NAME   = "legion"
+        VN_MAD = "bridge"
+        BRIDGE = "br1"
+        AR = [
+          TYPE = "IP4",
+          IP   = "172.20.1.100",
+          SIZE = "100" ]
+        NETWORK_ADDRESS = "172.20.1.0"
+        NETWORK_MASK    = "255.255.255.0"
+        GATEWAY         = "172.20.1.1"
+        DNS             = "1.1.1.1"
+        SEARCH_DOMAIN   = "legion.lh"
+        EOF
 
     - shell: |
         set -o errexit
@@ -398,12 +338,25 @@
         key: "{{ slurp_id_rsa_pub.content | b64decode }}"
         state: present
       delegate_to: "{{ item }}"
-      loop: "{{ groups.opennebula_node_kvm }}"
+      loop: >-
+        {{ (groups.kvm         | default([]))
+         + (groups.lxc         | default([]))
+         + (groups.firecracker | default([])) }}
 
     - shell: |
         set -o errexit
-        {% for host in groups.opennebula_node_kvm %}
-        if ! onehost show {{ host }}; then
-          onehost create {{ host }} -i kvm -v kvm
-        fi
+        {% for host in (groups.kvm | default([])) %}
+        onehost show {{ host }} || onehost create {{ host }} -i kvm -v kvm
+        {% endfor %}
+
+    - shell: |
+        set -o errexit
+        {% for host in (groups.lxc | default([])) %}
+        onehost show {{ host }} || onehost create {{ host }} -i lxc -v lxc
+        {% endfor %}
+
+    - shell: |
+        set -o errexit
+        {% for host in (groups.firecracker | default([])) %}
+        onehost show {{ host }} || onehost create {{ host }} -i firecracker -v firecracker
         {% endfor %}
