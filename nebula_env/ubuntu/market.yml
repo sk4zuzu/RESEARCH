@@ -1,0 +1,128 @@
+---
+- hosts: opennebula
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  environment: &environment
+    DEBIAN_FRONTEND: noninteractive
+  gather_facts: true
+  tasks: []
+
+- hosts: opennebula
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        apt-get -q update -y
+
+    - shell: |
+        set -o errexit
+        apt-get -q install -y gcc git make nodejs ruby-bundler ruby-dev yarnpkg
+
+    - shell: |
+        set -o errexit
+        install -d /opt/marketplace/ && cd $_
+        git clone https://github.com/OpenNebula/marketplace.git . || git pull origin
+
+    - shell: |
+        set -o errexit
+        install -d /opt/appmarket-simple/ && cd $_
+        git clone https://github.com/OpenNebula/appmarket-simple.git . || git pull origin
+
+    - shell: |
+        set -o errexit
+        cd /opt/appmarket-simple/src/
+        [[ -e data ]] || ln -s ../../marketplace/ data
+        [[ -e public/logos ]] || ln -s ../data/logos public/logos
+
+    - shell: |
+        set -o errexit
+        cd /opt/appmarket-simple/src/
+        bundle update --bundler
+        bundle install
+
+    - shell: |
+        set -o errexit
+        cat >/etc/systemd/system/market.service <<'EOF'
+        [Unit]
+        After=network.target
+        [Service]
+        Type=simple
+        WorkingDirectory=/opt/appmarket-simple/src/
+        ExecStart=/bin/bash -c 'exec bundler exec rackup -o 0.0.0.0'
+        User=root
+        Group=root
+        [Install]
+        WantedBy=multi-user.target
+        EOF
+
+    - shell: |
+        set -o errexit
+        cat >/etc/systemd/system/market-watcher.service <<'EOF'
+        [Unit]
+        After=network.target
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/systemctl restart market.service
+        [Install]
+        WantedBy=multi-user.target
+        EOF
+
+    - shell: |
+        set -o errexit
+        cat >/etc/systemd/system/market-watcher.path <<'EOF'
+        [Path]
+        PathModified=/opt/marketplace/appliances/all/
+        PathModified=/opt/marketplace/appliances/apps/
+        PathModified=/opt/marketplace/appliances/ec2/
+        PathModified=/opt/marketplace/appliances/edge/
+        PathModified=/opt/marketplace/appliances/firecracker/
+        PathModified=/opt/marketplace/appliances/flow/
+        PathModified=/opt/marketplace/appliances/iso/
+        PathModified=/opt/marketplace/appliances/k8s/
+        PathModified=/opt/marketplace/appliances/kernel/
+        PathModified=/opt/marketplace/appliances/kvm/
+        PathModified=/opt/marketplace/appliances/service/
+        PathModified=/opt/marketplace/appliances/vcenter/
+        PathModified=/opt/marketplace/appliances/asd/
+        [Install]
+        WantedBy=multi-user.target
+        EOF
+
+    - shell: |
+        set -o errexit
+        systemctl daemon-reload
+        systemctl enable market.service market-watcher.service market-watcher.path --now
+
+    - shell: |
+        set -o errexit
+        onemarket update -a 0 /dev/fd/0 <<'EOF'
+        ENDPOINT = "http://{{ inventory_hostname_short }}:9292/"
+        EOF
+
+    - shell: |
+        set -o errexit
+
+        cat >/etc/apache2/sites-available/market.conf <<'EOF'
+        <VirtualHost *:8080>
+          ServerName {{ hostvars[inventory_hostname].ansible_fqdn }}
+          DocumentRoot /_shared
+          <Directory /_shared>
+             Require all granted
+             Options +Indexes
+          </Directory>
+        </VirtualHost>
+        EOF
+
+        gawk -i inplace -f- /etc/apache2/ports.conf <<'EOF'
+        BEGIN { insert = "Listen 8080" }
+        $1 == insert { found = 1; next }
+        { print }
+        END { if (!found) print insert >>FILENAME }
+        EOF
+
+        a2ensite market
+
+        systemctl restart apache2
+      args:
+        creates: /etc/apache2/sites-available/market.conf

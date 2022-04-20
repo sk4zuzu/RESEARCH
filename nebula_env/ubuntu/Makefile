@@ -13,10 +13,10 @@ all: solo
 solo: $(SELF)/hosts.ini $(SELF)/solo.yml
 	cd $(SELF)/ && ansible-playbook -vv -i $^
 
-nspawn: $(SELF)/nspawn.ini $(SELF)/solo.yml $(SELF)/apache2.yml
+nspawn: $(SELF)/nspawn.ini $(SELF)/solo.yml $(SELF)/apache2.yml $(SELF)/market.yml
 	cd $(SELF)/ && ansible-playbook -vv -i $^
 
-equinix: $(SELF)/equinix.ini $(SELF)/solo.yml
+equinix: $(SELF)/equinix.ini $(SELF)/solo.yml $(SELF)/apache2.yml $(SELF)/market.yml
 	cd $(SELF)/ && ansible-playbook -vv -i $^
 
 raft: $(SELF)/hosts.ini $(SELF)/raft.yml
