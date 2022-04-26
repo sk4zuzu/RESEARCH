@@ -1,0 +1,5 @@
+[all:vars]
+ansible_user=root
+
+[nixos]
+nixos1 ansible_host=I.P.V.4 ansible_port=22

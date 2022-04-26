@@ -1,0 +1,72 @@
+---
+- hosts: nixos
+  strategy: linear
+  gather_facts: false
+  tasks:
+    - script: "{{ playbook_dir }}/script/nix-env.sh"
+      args: { executable: /bin/sh, creates: /bin/bash }
+
+- hosts: nixos
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  gather_facts: true
+  tasks: []
+
+- hosts: nixos
+  module_defaults: *module_defaults
+  tasks:
+    - file:
+        path: "{{ item.path }}"
+        state: directory
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: /root/.ssh/       , mode: "u=rwx,go="   }
+        - { path: /etc/nixos/       , mode: "u=rwx,go=rx" }
+        - { path: /var/lib/machines/, mode: "u=rwx,go=rx" }
+        - { path: /_datastores/     , mode: "ugo=rwx"     }
+        - { path: /_shared/         , mode: "ugo=rwx"     }
+
+    - copy:
+        dest: /root/.ssh/config
+        mode: "u=rw,go="
+        content: |
+          StrictHostKeyChecking no
+          UserKnownHostsFile /dev/null
+          ForwardAgent yes
+
+    - copy:
+        dest: "{{ item.dest }}"
+        src: "{{ playbook_dir }}/files/{{ item.src }}"
+      loop:
+        - { dest: /etc/nixos/       , src: extra.nix    }
+        - { dest: /etc/nixos/       , src: machines.nix }
+        - { dest: /var/lib/machines/, src: Makefile     }
+
+    - file:
+        dest: "{{ item.dest }}"
+        src: "{{ item.src }}"
+        state: link
+      loop:
+        - { dest: /var/lib/machines/machines.nix, src: /etc/nixos/machines.nix }
+
+    - shell: |
+        set -o errexit
+        gawk -i inplace -f- /etc/nixos/configuration.nix <<'EOF'
+        BEGIN { update = "./extra.nix ./machines.nix" }
+        /^\s*imports\s*=/,/\];$/ { if ($0 !~ update) gsub("];", update " ];") }
+        { print }
+        EOF
+
+- hosts: nixos
+  module_defaults: *module_defaults
+  tasks:
+    - module_defaults:
+        shell: { chdir: /var/lib/machines/ }
+      block:
+        - shell: |
+            set -o errexit
+            make all
+
+        - shell: |
+            set -o errexit
+            make switch
