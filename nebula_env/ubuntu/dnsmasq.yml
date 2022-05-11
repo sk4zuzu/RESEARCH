@@ -1,0 +1,148 @@
+---
+- hosts: opennebula[0]
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  environment: &environment
+    DEBIAN_FRONTEND: noninteractive
+  gather_facts: true
+  tasks: []
+
+- hosts: opennebula[0]
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        apt-get -q install -y dnsmasq
+        systemctl enable dnsmasq.service --now
+
+    - shell: |
+        set -o errexit
+        touch /etc/opennebula_hosts
+        chown oneadmin:oneadmin /etc/opennebula_hosts
+        chmod u=rwx,go=rx /etc/opennebula_hosts
+
+    - shell: |
+        set -o errexit
+        cat >/etc/dnsmasq.conf <<'EOF'
+        addn-hosts=/etc/opennebula_hosts
+        dns-forward-max=150
+        cache-size=150
+        listen-address={{ one_host | default(ansible_host) }}
+        local-service
+        user=oneadmin
+        no-resolv
+        server=1.1.1.1
+        server=8.8.8.8
+        EOF
+
+    - shell: |
+        set -o errexit
+        gawk -i inplace -f- /etc/systemd/resolved.conf <<'EOF'
+        BEGIN { update = "DNS={{ one_host | default(ansible_host) }}" }
+        /^DNS=/ { $0 = update; found = 1 }
+        { print }
+        END { if (!found) print update >>FILENAME }
+        EOF
+
+    - shell: |
+        set -o errexit
+        systemctl restart dnsmasq.service systemd-resolved.service
+
+- hosts: opennebula[0]
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        install -o oneadmin -g oneadmin -m u=rwx,go=rx -D /dev/fd/0 /var/lib/one/remotes/hooks/dns/dns_add.rb <<'EOF'
+        #!/usr/bin/ruby
+        require 'json'
+        stdin = STDIN.read
+        stdin = JSON.parse(stdin)
+        File.open('/var/tmp/dns_hook_lock', File::CREAT|File::TRUNC|File::RDWR, 0644) do |lf|
+            lf.flock(File::LOCK_EX)
+            hosts = File.readlines('/etc/opennebula_hosts')
+            hosts = hosts.map {|v| v.strip}
+            File.open('/etc/opennebula_hosts', 'a') do |f|
+                stdin['VM_POOL']['VM'].each do |vm|
+                    ip = [vm['TEMPLATE']['NIC']].flatten[0]
+                    next unless ip
+                    ip = ip['IP']
+                    next unless ip
+                    line = "#{ip} #{vm['NAME']} one-#{vm['ID']}"
+                    next if hosts.include?(line)
+                    f.puts(line)
+                end
+            end
+        ensure
+            lf.flock(File::LOCK_UN)
+        end
+        system('pkill -HUP dnsmasq')
+        exit 0
+        EOF
+
+    - shell: |
+        set -o errexit
+        install -o oneadmin -g oneadmin -m u=rwx,go=rx -D /dev/fd/0 /var/lib/one/remotes/hooks/dns/dns_remove.rb <<'EOF'
+        #!/usr/bin/ruby
+        id  = STDIN.read
+        ret = ''
+        File.open('/var/tmp/dns_hook_lock', File::CREAT|File::TRUNC|File::RDWR, 0644) do |lf|
+            lf.flock(File::LOCK_EX)
+            File.open('/etc/opennebula_hosts', 'r').each_line do |l|
+                next if l.include?("one-#{id}")
+                ret << l
+            end
+            File.open('/etc/opennebula_hosts', 'w') do |f|
+                f.puts(ret)
+            end
+        ensure
+            lf.flock(File::LOCK_UN)
+        end
+        system('pkill -HUP dnsmasq')
+        exit 0
+        EOF
+
+    - shell: |
+        set -o errexit
+        onehook show "refresh_dns_done" || onehook create /dev/fd/0 <<'EOF'
+        NAME            = "refresh_dns_done"
+        TYPE            = "state"
+        RESOURCE        = "VM"
+        REMOTE          = "NO"
+        ON              = "DONE"
+        TIMEOUT         = "60"
+        ARGUMENTS       = "$TEMPLATE"
+        ARGUMENTS_STDIN = "YES"
+        COMMAND         = "/$(which base64) -d | xmllint --xpath '/VM/ID/text()' - | /var/lib/one/remotes/hooks/dns/dns_remove.rb"
+        EOF
+
+    - shell: |
+        set -o errexit
+        onehook show "refresh_dns_create" || onehook create /dev/fd/0 <<'EOF'
+        NAME            = "refresh_dns_create"
+        TYPE            = "api"
+        CALL            = "one.template.instantiate"
+        RESOURCE        = "VM"
+        REMOTE          = "NO"
+        TIMEOUT         = "60"
+        ARGUMENTS_STDIN = "YES"
+        COMMAND         = "/$(which onevm) list -j | /var/lib/one/remotes/hooks/dns/dns_add.rb"
+        EOF
+
+- hosts: opennebula[0]
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        onevnet update -a "public" /dev/fd/0 <<'EOF'
+        DNS = "{{ one_host | default(ansible_host) }}"
+        EOF
+
+    - shell: |
+        set -o errexit
+        onevnet update -a "private" /dev/fd/0 <<'EOF'
+        DNS = "{{ one_host | default(ansible_host) }}"
+        EOF
