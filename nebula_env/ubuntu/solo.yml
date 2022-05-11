@@ -46,10 +46,19 @@
   tasks:
     - shell: |
         set -o errexit
+        apt-get -q install -y docker.io
+
+    - shell: |
+        set -o errexit
         apt-get -q install -y opennebula{,-flow,-gate,-provision,-rubygems,-sunstone}
         {% if ee_version is version('6.0', '>=') %}
         apt-get -q install -y opennebula-fireedge
         {% endif %}
+
+    - user:
+        name: oneadmin
+        groups: [docker]
+        append: true
 
     - user:
         name: one
@@ -83,7 +92,7 @@
         END { print DB >>FILENAME }
         EOF
 
-    - vars: { _endpoint: "http://{{ hostvars[groups.opennebula.0].ansible_host }}:5030" }
+    - vars: { _endpoint: "http://{{ one_host | default(ansible_host) }}:5030" }
       shell: |
         set -o errexit
         gawk -i inplace -f- /etc/one/oned.conf <<'EOF'
@@ -93,7 +102,7 @@
         END { if (!found) print update >>FILENAME }
         EOF
 
-    - vars: { _endpoint: "http://{{ hostvars[groups.opennebula.0].ansible_host }}:2616" }
+    - vars: { _endpoint: "http://{{ one_host | default(ansible_host) }}:2616" }
       shell: |
         set -o errexit
         gawk -i inplace -f- /etc/one/sunstone-server.conf <<'EOF'
@@ -116,10 +125,11 @@
         - /etc/one/oneflow-server.conf
         - /etc/one/onegate-server.conf
 
-    - shell: |
+    - vars: { _endpoint: "{{ one_host | default(ansible_host) }}" }
+      shell: |
         set -o errexit
         gawk -i inplace -f- /etc/one/monitord.conf <<'EOF'
-        BEGIN { update = "MONITOR_ADDRESS = \"{{ ansible_host }}\"," }
+        BEGIN { update = "MONITOR_ADDRESS = \"{{ _endpoint }}\"," }
         /^NETWORK = /,/^\]/ { if ($1 == "MONITOR_ADDRESS") $0 = update }
         { print }
         EOF
@@ -201,92 +211,40 @@
         set -o errexit
         apt-get -q install -y opennebula-node-firecracker
 
-- hosts: kvm:firecracker:lxc
-  module_defaults: *module_defaults
-  environment: *environment
-  tasks:
-    #- shell: |
-    #    set -o errexit
-    #    cat >/etc/systemd/network/br0.netdev <<'EOF'
-    #    [NetDev]
-    #    Name=br0
-    #    Kind=bridge
-    #    EOF
-    #    cat >/etc/systemd/network/br0.network <<'EOF'
-    #    [Match]
-    #    Name=br0
-    #    [Network]
-    #    Address=172.20.0.1/24
-    #    IPForward=ipv4
-    #    IPMasquerade=yes
-    #    ConfigureWithoutCarrier=yes
-    #    [Link]
-    #    ActivationPolicy=always-up
-    #    EOF
-    #    systemctl enable systemd-networkd
-    #    systemctl restart systemd-networkd
-    #  args:
-    #    creates: /etc/systemd/network/br0.network
-
-    - shell: |
-        set -o errexit
-        cat >/etc/systemd/network/br1.netdev <<'EOF'
-        [NetDev]
-        Name=br1
-        Kind=bridge
-        EOF
-        cat >/etc/systemd/network/br1.network <<'EOF'
-        [Match]
-        Name=br1
-        [Network]
-        Address=172.20.1.1/24
-        IPForward=ipv4
-        IPMasquerade=no
-        ConfigureWithoutCarrier=yes
-        [Link]
-        ActivationPolicy=always-up
-        EOF
-        systemctl enable systemd-networkd
-        systemctl restart systemd-networkd
-      args:
-        creates: /etc/systemd/network/br1.network
-
 - hosts: opennebula[0]
   module_defaults: *module_defaults
   environment: *environment
   tasks:
     - shell: |
         set -o errexit
-        onevnet show "skynet" || onevnet create /dev/fd/0 <<'EOF'
-        NAME   = "skynet"
+        onevnet show "public" || onevnet create /dev/fd/0 <<'EOF'
+        NAME   = "public"
         VN_MAD = "bridge"
         BRIDGE = "br0"
         AR = [
           TYPE = "IP4",
-          IP   = "10.2.11.200",
+          IP   = "{{ public_cidr | nthhost(200) }}",
           SIZE = "48" ]
-        NETWORK_ADDRESS = "10.2.11.0"
-        NETWORK_MASK    = "255.255.255.0"
-        GATEWAY         = "10.2.11.1"
+        NETWORK_ADDRESS = "{{ public_cidr | ipaddr('network') }}"
+        NETWORK_MASK    = "{{ public_cidr | ipaddr('netmask') }}"
+        GATEWAY         = "{{ public_cidr | nthhost(1) }}"
         DNS             = "1.1.1.1"
-        SEARCH_DOMAIN   = "skynet.lh"
         EOF
 
     - shell: |
         set -o errexit
-        onevnet show "legion" || onevnet create /dev/fd/0 <<'EOF'
-        NAME   = "legion"
+        onevnet show "private" || onevnet create /dev/fd/0 <<'EOF'
+        NAME   = "private"
         VN_MAD = "bridge"
         BRIDGE = "br1"
+        PHYDEV = "eth1"
         AR = [
           TYPE = "IP4",
-          IP   = "172.20.1.100",
+          IP   = "{{ private_cidr | nthhost(100) }}",
           SIZE = "100" ]
-        NETWORK_ADDRESS = "172.20.1.0"
-        NETWORK_MASK    = "255.255.255.0"
-        GATEWAY         = "172.20.1.1"
+        NETWORK_ADDRESS = "{{ private_cidr | ipaddr('network') }}"
+        NETWORK_MASK    = "{{ private_cidr | ipaddr('netmask') }}"
         DNS             = "1.1.1.1"
-        SEARCH_DOMAIN   = "legion.lh"
         EOF
 
     - shell: |

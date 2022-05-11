@@ -1,20 +1,23 @@
 [all:vars]
 ansible_user=ubuntu
 ee_token=abcdefgh:ijklmnop
-ee_version="6.2"
+ee_version="6.4.0"
+ubuntu_version="20.04"
 ssh_public_key="{{ lookup('file', '~/.ssh/id_rsa.pub') | trim }}"
+public_cidr=10.50.2.0/24
+private_cidr=172.20.0.0/24
 
 [opennebula]
-u1a1 ansible_host=10.50.2.10
+n1a1 ansible_host="{{ public_cidr | nthhost(10) }}"
 
 [kvm]
-u1b1 ansible_host=10.50.2.20
-u1b2 ansible_host=10.50.2.21
+n1b1 ansible_host="{{ public_cidr | nthhost(20) }}"
+n1b2 ansible_host="{{ public_cidr | nthhost(21) }}"
 
 #[lxc]
-#u1b1 ansible_host=10.50.2.20
-#u1b2 ansible_host=10.50.2.21
+#n1b1 ansible_host="{{ public_cidr | nthhost(20) }}"
+#n1b2 ansible_host="{{ public_cidr | nthhost(21) }}"
 
 #[firecracker]
-#u1b1 ansible_host=10.50.2.20
-#u1b2 ansible_host=10.50.2.21
+#n1b1 ansible_host="{{ public_cidr | nthhost(20) }}"
+#n1b2 ansible_host="{{ public_cidr | nthhost(21) }}"
