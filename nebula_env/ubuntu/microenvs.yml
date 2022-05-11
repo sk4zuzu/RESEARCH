@@ -1,0 +1,130 @@
+---
+- hosts: opennebula[0]
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  environment: &environment
+    DEBIAN_FRONTEND: noninteractive
+  gather_facts: true
+  tasks: []
+
+- hosts: opennebula[0]
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        apt-get -q install -y python3-{pip,virtualenv}
+
+    - shell: |
+        set -o errexit
+        pip --no-cache-dir install ansible==4.0.0
+        pip --no-cache-dir install six
+        pip --no-cache-dir install netaddr
+
+    - shell: |
+        set -o errexit
+        install -o oneadmin -g oneadmin -m u=rwx,go=rx -D /dev/fd/0 /var/lib/one/remotes/hooks/cleanup/vnet_vmgroup.rb <<'EOF'
+        #!/usr/bin/ruby
+        ONE_LOCATION = ENV['ONE_LOCATION']
+        if !ONE_LOCATION
+            RUBY_LIB_LOCATION = '/usr/lib/one/ruby'
+            GEMS_LOCATION     = '/usr/share/one/gems'
+        else
+            RUBY_LIB_LOCATION = ONE_LOCATION + '/lib/ruby'
+            GEMS_LOCATION     = ONE_LOCATION + '/share/gems'
+        end
+        # %%RUBYGEMS_SETUP_BEGIN%%
+        if File.directory?(GEMS_LOCATION)
+            real_gems_path = File.realpath(GEMS_LOCATION)
+            if !defined?(Gem) || Gem.path != [real_gems_path]
+                $LOAD_PATH.reject! {|l| l =~ /vendor_ruby/ }
+                begin
+                    verb = $VERBOSE
+                    $VERBOSE = nil
+                    require 'rubygems'
+                    Gem.use_paths(real_gems_path)
+                ensure
+                    $VERBOSE = verb
+                end
+            end
+        end
+        # %%RUBYGEMS_SETUP_END%%
+        $LOAD_PATH << RUBY_LIB_LOCATION
+        require 'opennebula'
+        id     = STDIN.read
+        client = OpenNebula::Client.new
+        vm     = OpenNebula::VirtualMachine.new_with_id(id, client)
+        rc     = vm.info
+        exit 0 if OpenNebula.is_error?(rc)
+        vm       = vm.to_hash['VM']
+        vm_group = vm['TEMPLATE']['VMGROUP']
+        [vm['TEMPLATE']['NIC']].flatten.each do |nic|
+            next if nic['NETWORK'] == 'service'
+            vnet = OpenNebula::VirtualNetwork.new_with_id(nic['NETWORK_ID'].to_i, client)
+            rc   = vnet.info
+            next if OpenNebula.is_error?(rc)
+            next if vnet['/VNET/USED_LEASES'].to_s != '0'
+            vnet.delete
+        end
+        exit 0 unless vm_group
+        vm_group = OpenNebula::VMGroup.new_with_id(vm_group['VMGROUP_ID'].to_i, client)
+        rc       = vm_group.info
+        exit 0 if OpenNebula.is_error?(rc)
+        exit 0 if vm_group['//VMS']
+        vm_group.delete
+        EOF
+
+    - shell: |
+        set -o errexit
+        onehook show "cleanup_vnet_vmgroup" || onehook create /dev/fd/0 <<'EOF'
+        NAME            = "cleanup_vnet_vmgroup"
+        TYPE            = "state"
+        RESOURCE        = "VM"
+        REMOTE          = "NO"
+        ON              = "DONE"
+        TIMEOUT         = "60"
+        ARGUMENTS       = "$TEMPLATE"
+        ARGUMENTS_STDIN = "YES"
+        COMMAND         = "/$(which base64) -d | xmllint --xpath '/VM/ID/text()' - | /var/lib/one/remotes/hooks/cleanup/vnet_vmgroup.rb"
+        EOF
+
+    - shell: |
+        set -o errexit
+        oneimage show "ubuntu2004" || oneimage create -d 1 /dev/fd/0 <<'EOF'
+        NAME       = "ubuntu2004"
+        TYPE       = "OS"
+        DEV_PREFIX = "sd"
+        FORMAT     = "qcow2"
+        PATH       = "/var/lib/one/datastores/img/ubuntu2004.qcow2"
+        SIZE       = "20480"
+        EOF
+
+    - shell: |
+        set -o errexit
+        onetemplate show "ubuntu2004" || onetemplate create /dev/fd/0 <<'EOF'
+        NAME   = "ubuntu2004"
+        CPU    = "0.5"
+        VCPU   = "1"
+        MEMORY = "1536"
+        DISK = [
+          IMAGE       = "ubuntu2004",
+          IMAGE_UNAME = "oneadmin",
+          SIZE        = "20480",
+          CACHE       = "unsafe"
+        ]
+        CONTEXT = [
+          SSH_PUBLIC_KEY = "$USER[SSH_PUBLIC_KEY]",
+          NETWORK        = "YES",
+          SET_HOSTNAME   = "$NAME"
+        ]
+        GRAPHICS = [
+          TYPE   = "vnc",
+          LISTEN = "0.0.0.0"
+        ]
+        NIC = [
+          NETWORK = "service"
+        ]
+        CPU_MODEL = [
+          MODEL = "host-passthrough"
+        ]
+        EOF

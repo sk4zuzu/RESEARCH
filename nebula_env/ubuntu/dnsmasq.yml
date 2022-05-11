@@ -137,7 +137,7 @@
   tasks:
     - shell: |
         set -o errexit
-        onevnet update -a "public" /dev/fd/0 <<'EOF'
+        onevnet update -a "service" /dev/fd/0 <<'EOF'
         DNS = "{{ one_host | default(ansible_host) }}"
         EOF
 

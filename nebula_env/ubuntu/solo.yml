@@ -78,12 +78,12 @@
 
     - environment:
         DB: |
-          DB = [ backend = "mysql",
-                 server = "localhost",
-                 port = 0,
-                 user = "oneadmin",
-                 passwd = "asd",
-                 db_name = "opennebula" ]
+          DB = [ BACKEND = "mysql",
+                 SERVER  = "localhost",
+                 PORT    = 0,
+                 USER    = "oneadmin",
+                 PASSWD  = "asd",
+                 DB_NAME = "opennebula" ]
       shell: |
         set -o errexit
         gawk -i inplace -v DB="$DB" -f- /etc/one/oned.conf <<'EOF'
@@ -150,11 +150,12 @@
     - shell: |
         set -o errexit
         onedatastore update 1 /dev/fd/0 <<'EOF'
-        DS_MAD="fs"
-        TM_MAD="qcow2"
+        DS_MAD    = "fs"
+        TM_MAD    = "qcow2"
+        SAFE_DIRS = "/var/lib/one/datastores/img/"
         EOF
         onedatastore update 0 /dev/fd/0 <<'EOF'
-        TM_MAD="qcow2"
+        TM_MAD = "qcow2"
         EOF
 
     - shell: |
@@ -217,8 +218,8 @@
   tasks:
     - shell: |
         set -o errexit
-        onevnet show "public" || onevnet create /dev/fd/0 <<'EOF'
-        NAME   = "public"
+        onevnet show "service" || onevnet create /dev/fd/0 <<'EOF'
+        NAME   = "service"
         VN_MAD = "bridge"
         BRIDGE = "br0"
         AR = [
@@ -258,7 +259,7 @@
         onemarketapp export 'Alpine Linux 3.14' alpine314 --datastore default || true
         onetemplate update -a alpine314 /dev/fd/0 <<'EOF'
         NIC = [
-          NETWORK_ID = "0",
+          NETWORK_ID      = "0",
           SECURITY_GROUPS = "0" ]
         EOF
 
