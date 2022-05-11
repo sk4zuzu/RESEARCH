@@ -21,6 +21,7 @@
     enableIPv6 = true;
     bridges = {
       br0 = { interfaces = []; };
+      br1 = { interfaces = []; };
     };
     interfaces = {
       br0.ipv4.addresses = [ { address = "10.2.11.1"; prefixLength = 24; } ];
@@ -35,8 +36,6 @@
       checkReversePath = false;
       trustedInterfaces = [ "br0" ];
       allowedTCPPorts = [ 22 ];
-      extraCommands     = "iptables -I FORWARD -i br0 -d 0.0.0.0/0 -j ACCEPT";
-      extraStopCommands = "iptables -D FORWARD -i br0 -d 0.0.0.0/0 -j ACCEPT || true";
     };
   };
 }

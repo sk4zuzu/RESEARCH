@@ -21,10 +21,10 @@ define HOSTS
 ::1          localhost ip6-localhost ip6-loopback
 ff02::1      ip6-allnodes
 ff02::2      ip6-allrouters
+10.2.11.30 sigma
 10.2.11.40 delta
 10.2.11.50 epsilon
 10.2.11.60 omicron
-10.2.11.70 sigma
 endef
 
 define RC_LOCAL
@@ -48,6 +48,8 @@ define render_interfaces
 auto lo
 iface lo inet loopback
 iface host0 inet manual
+auto eth1
+iface eth1 inet manual
 auto br0
 iface br0 inet static
     bridge_ports host0
@@ -107,7 +109,7 @@ export
 
 .PHONY: all ls list switch start-all stop-all purge-all
 
-all: delta epsilon omicron sigma
+all: sigma delta epsilon omicron
 
 ls list:
 	@machinectl list
@@ -115,17 +117,45 @@ ls list:
 switch:
 	@nixos-rebuild switch
 
-start-all: start-delta start-epsilon start-omicron start-sigma
+start-all: start-sigma start-delta start-epsilon start-omicron
 
-stop-all: stop-delta stop-epsilon stop-omicron stop-sigma
+stop-all: stop-sigma stop-delta stop-epsilon stop-omicron
 
-purge-all: purge-delta purge-epsilon purge-omicron purge-sigma
+purge-all: purge-sigma purge-delta purge-epsilon purge-omicron
 
 .PHONY: archive-all unarchive-all
 
-archive-all: archive-delta archive-epsilon archive-omicron archive-sigma
+archive-all: archive-sigma archive-delta archive-epsilon archive-omicron
 
-unarchive-all: unarchive-delta unarchive-epsilon unarchive-omicron unarchive-sigma
+unarchive-all: unarchive-sigma unarchive-delta unarchive-epsilon unarchive-omicron
+
+.PHONY: sigma start-sigma stop-sigma purge-sigma
+
+sigma: INTERFACES = $(call render_interfaces,30)
+sigma: $(SELF)/sigma/
+	$(call configure_ubuntu,$@,$<)
+
+$(SELF)/sigma/:
+	$(call bootstrap_ubuntu,$@,focal,$(COMMON_APT) cloud-utils gcc kubectl libguestfs0 libguestfs-tools linux-image-generic make nodejs packer ruby-bundler ruby-dev tmux yarnpkg)
+
+start-sigma:
+	machinectl start sigma
+
+stop-sigma:
+	-machinectl stop sigma
+
+purge-sigma:
+	-umount $(SELF)/sigma/proc/
+	-chattr -i $(SELF)/sigma/etc/resolv.conf
+	-rm -rf $(SELF)/sigma/
+
+.PHONY: archive-sigma unarchive-sigma
+
+archive-sigma: $(SELF)/sigma/
+	tar -czpf $(SELF)/sigma.tar.gz sigma/
+
+unarchive-sigma: $(SELF)/sigma.tar.gz
+	tar -xzpf $< -C $(SELF)/
 
 .PHONY: delta start-delta stop-delta purge-delta
 
@@ -209,32 +239,4 @@ archive-omicron: $(SELF)/omicron/
 	tar -czpf $(SELF)/omicron.tar.gz omicron/
 
 unarchive-omicron: $(SELF)/omicron.tar.gz
-	tar -xzpf $< -C $(SELF)/
-
-.PHONY: sigma start-sigma stop-sigma purge-sigma
-
-sigma: INTERFACES = $(call render_interfaces,70)
-sigma: $(SELF)/sigma/
-	$(call configure_ubuntu,$@,$<)
-
-$(SELF)/sigma/:
-	$(call bootstrap_ubuntu,$@,focal,$(COMMON_APT) cloud-utils gcc kubectl libguestfs0 libguestfs-tools linux-image-generic make nodejs packer ruby-bundler ruby-dev tmux yarnpkg)
-
-start-sigma:
-	machinectl start sigma
-
-stop-sigma:
-	-machinectl stop sigma
-
-purge-sigma:
-	-umount $(SELF)/sigma/proc/
-	-chattr -i $(SELF)/sigma/etc/resolv.conf
-	-rm -rf $(SELF)/sigma/
-
-.PHONY: archive-sigma unarchive-sigma
-
-archive-sigma: $(SELF)/sigma/
-	tar -czpf $(SELF)/sigma.tar.gz sigma/
-
-unarchive-sigma: $(SELF)/sigma.tar.gz
 	tar -xzpf $< -C $(SELF)/
