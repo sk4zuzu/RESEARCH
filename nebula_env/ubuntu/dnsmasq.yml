@@ -29,7 +29,6 @@
         dns-forward-max=150
         cache-size=150
         listen-address={{ one_host | default(ansible_host) }}
-        local-service
         user=oneadmin
         no-resolv
         server=1.1.1.1

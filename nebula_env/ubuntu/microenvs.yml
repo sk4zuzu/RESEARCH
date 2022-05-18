@@ -17,12 +17,6 @@
 
     - shell: |
         set -o errexit
-        pip --no-cache-dir install ansible==4.0.0
-        pip --no-cache-dir install six
-        pip --no-cache-dir install netaddr
-
-    - shell: |
-        set -o errexit
         install -o oneadmin -g oneadmin -m u=rwx,go=rx -D /dev/fd/0 /var/lib/one/remotes/hooks/cleanup/vnet_vmgroup.rb <<'EOF'
         #!/usr/bin/ruby
         ONE_LOCATION = ENV['ONE_LOCATION']
