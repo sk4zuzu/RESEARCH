@@ -1,0 +1,23 @@
+global:
+- log stdout format raw local0 debug
+- daemon
+
+defaults:
+- log global
+- retries 3
+- maxconn 2000
+- timeout connect 5s
+- timeout client 120s
+- timeout server 120s
+
+frontend:
+  f1:
+  - mode tcp
+  - bind 0.0.0.0:8686
+  - default_backend b1
+
+backend:
+  b1:
+  - mode tcp
+  - balance roundrobin
+  - option tcp-check

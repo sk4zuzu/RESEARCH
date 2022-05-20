@@ -1,0 +1,10 @@
+vrrp_instance ETH0 {
+  state BACKUP
+  interface eth0
+  virtual_router_id 1
+  priority 100
+  advert_int 1
+  virtual_ipaddress {
+    $SUBNET_PREFIX.86/24
+  }
+}
