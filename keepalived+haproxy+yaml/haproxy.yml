@@ -12,12 +12,15 @@ defaults:
 
 frontend:
   f1:
-  - mode tcp
-  - bind 0.0.0.0:8686
-  - default_backend b1
+    options:
+    - mode tcp
+    - bind 0.0.0.0:8686
+    - default_backend b1
 
 backend:
   b1:
-  - mode tcp
-  - balance roundrobin
-  - option tcp-check
+    options:
+    - mode tcp
+    - balance roundrobin
+    - option tcp-check
+    server: {}

@@ -20,11 +20,22 @@ def render_haproxy_cfg(haproxy_yml = HAPROXY_YML, haproxy_cfg = HAPROXY_CFG, ind
             options.each {|option| output << indent << option << "\n"}
         end
     config
-        .select {|section| %w[frontend backend].include? section}
+        .select {|section| %w[frontend].include? section}
         .each do |section, names|
-            names.each do |name, options|
+            names.each do |name, value|
                 output << "#{section} #{name}" << "\n"
-                options.each {|option| output << indent << option << "\n"}
+                value['options'].each {|option| output << indent << option << "\n"}
+            end
+        end
+    config
+        .select {|section| %w[backend].include? section}
+        .each do |section, names|
+            names.each do |name, value|
+                output << "#{section} #{name}" << "\n"
+                value['options'].each {|option| output << indent << option << "\n"}
+                value['server'].each do |server, command|
+                    output << indent << "server #{server} #{command}" << "\n"
+                end
             end
         end
 
@@ -40,13 +51,13 @@ end
 if caller.empty?
     config = YAML.safe_load File.read(HAPROXY_YML)
 
-    config['backend']['b1'] << 'server s1 http1.poc.svc:8000 check port 8000'
+    config['backend']['b1']['server']['s1'] = 'http1.poc.svc:8000 check port 8000'
     write_haproxy_cfg config, HAPROXY_YML, HAPROXY_CFG
     system 'haproxy -f /etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)'
 
     sleep 8
 
-    config['backend']['b1'] << 'server s2 http2.poc.svc:8000 check port 8000'
+    config['backend']['b1']['server']['s2'] = 'http2.poc.svc:8000 check port 8000'
     write_haproxy_cfg config, HAPROXY_YML, HAPROXY_CFG
     system 'haproxy -f /etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)'
 
