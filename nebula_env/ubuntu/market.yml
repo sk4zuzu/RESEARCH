@@ -104,21 +104,14 @@
         set -o errexit
 
         cat >/etc/apache2/sites-available/market.conf <<'EOF'
-        <VirtualHost *:8080>
-          ServerName {{ hostvars[inventory_hostname].ansible_fqdn }}
+        <VirtualHost *:80>
+          ServerName services
           DocumentRoot /_shared
           <Directory /_shared>
              Require all granted
              Options +Indexes
           </Directory>
         </VirtualHost>
-        EOF
-
-        gawk -i inplace -f- /etc/apache2/ports.conf <<'EOF'
-        BEGIN { insert = "Listen 8080" }
-        $1 == insert { found = 1; next }
-        { print }
-        END { if (!found) print insert >>FILENAME }
         EOF
 
         a2ensite market
