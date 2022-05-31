@@ -1,5 +1,9 @@
 global:
 - log stdout format raw local0 debug
+- stats socket /var/run/haproxy.sock mode 666 level admin
+- stats timeout 120s
+- user haproxy
+- group haproxy
 - daemon
 
 defaults:
@@ -16,9 +20,20 @@ frontend:
     - mode tcp
     - bind 0.0.0.0:8686
     - default_backend b1
+  f2:
+    options:
+    - mode tcp
+    - bind 0.0.0.0:6969
+    - default_backend b2
 
 backend:
   b1:
+    options:
+    - mode tcp
+    - balance roundrobin
+    - option tcp-check
+    server: {}
+  b2:
     options:
     - mode tcp
     - balance roundrobin

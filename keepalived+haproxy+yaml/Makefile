@@ -38,6 +38,24 @@ exec_haproxy1: $(COMPOSE_FILES)
 exec_haproxy2: $(COMPOSE_FILES)
 	@$(call DC,$^) exec haproxy2 /bin/sh
 
+.PHONY: socat_haproxy1 socat_haproxy2
+
+socat_haproxy1: $(COMPOSE_FILES)
+	@$(call DC,$^) exec haproxy1 \
+	/bin/sh -c 'while :; do /usr/bin/socat - UNIX-CLIENT:/var/run/haproxy.sock; done'
+
+socat_haproxy2: $(COMPOSE_FILES)
+	@$(call DC,$^) exec haproxy2 \
+	/bin/sh -c 'while :; do /usr/bin/socat - UNIX-CLIENT:/var/run/haproxy.sock; done'
+
+.PHONY: client_haproxy1 client_haproxy2
+
+client_haproxy1: $(COMPOSE_FILES)
+	@$(call DC,$^) exec haproxy1 /usr/bin/ruby client.rb
+
+client_haproxy2: $(COMPOSE_FILES)
+	@$(call DC,$^) exec haproxy2 /usr/bin/ruby client.rb
+
 .PHONY: test
 
 test:

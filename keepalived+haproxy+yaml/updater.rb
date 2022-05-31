@@ -51,13 +51,15 @@ end
 if caller.empty?
     config = YAML.safe_load File.read(HAPROXY_YML)
 
-    config['backend']['b1']['server']['s1'] = 'http1.poc.svc:8000 check port 8000'
+    config['backend']['b1']['server']['s1'] = 'http1.poc.svc:8000 check observe layer4 error-limit 50 on-error mark-down'
+    config['backend']['b2']['server']['s1'] = 'http1.poc.svc:8000 check observe layer4 error-limit 50 on-error mark-down'
     write_haproxy_cfg config, HAPROXY_YML, HAPROXY_CFG
     system 'haproxy -f /etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)'
 
     sleep 8
 
-    config['backend']['b1']['server']['s2'] = 'http2.poc.svc:8000 check port 8000'
+    config['backend']['b1']['server']['s2'] = 'http2.poc.svc:8000 check observe layer4 error-limit 50 on-error mark-down'
+    config['backend']['b2']['server']['s2'] = 'http2.poc.svc:8000 check observe layer4 error-limit 50 on-error mark-down'
     write_haproxy_cfg config, HAPROXY_YML, HAPROXY_CFG
     system 'haproxy -f /etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid -sf $(cat /var/run/haproxy.pid)'
 

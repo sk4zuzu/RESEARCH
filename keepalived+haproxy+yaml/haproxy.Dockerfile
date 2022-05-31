@@ -7,7 +7,8 @@ RUN apk --no-cache add \
 RUN apk --no-cache add \
     gettext \
     haproxy \
-    keepalived
+    keepalived \
+    socat
 
 COPY /keepalived.conf.envsubst /tmp/
 
@@ -18,7 +19,7 @@ RUN SUBNET_PREFIX=$SUBNET_PREFIX envsubst '$SUBNET_PREFIX' \
     > /etc/keepalived/keepalived.conf \
  && cat /etc/keepalived/keepalived.conf
 
-COPY /updater.rb /
+COPY /updater.rb /client.rb /
 COPY /haproxy.yml /etc/haproxy/
 
 WORKDIR /
