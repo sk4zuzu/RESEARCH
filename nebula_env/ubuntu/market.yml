@@ -112,6 +112,14 @@
              Options +Indexes
           </Directory>
         </VirtualHost>
+        <VirtualHost *:80>
+          ServerName storage
+          DocumentRoot /_shared
+          <Directory /_shared>
+             Require all granted
+             Options +Indexes
+          </Directory>
+        </VirtualHost>
         EOF
 
         a2ensite market
