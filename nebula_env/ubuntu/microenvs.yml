@@ -122,3 +122,44 @@
           MODEL = "host-passthrough"
         ]
         EOF
+
+    - shell: |
+        set -o errexit
+        oneimage show "alma8" || oneimage create -d 1 /dev/fd/0 <<'EOF'
+        NAME       = "alma8"
+        TYPE       = "OS"
+        DEV_PREFIX = "sd"
+        FORMAT     = "qcow2"
+        PATH       = "/var/lib/one/datastores/img/alma8.qcow2"
+        SIZE       = "20480"
+        EOF
+
+    - shell: |
+        set -o errexit
+        onetemplate show "alma8" || onetemplate create /dev/fd/0 <<'EOF'
+        NAME   = "alma8"
+        CPU    = "0.5"
+        VCPU   = "1"
+        MEMORY = "1536"
+        DISK = [
+          IMAGE       = "alma8",
+          IMAGE_UNAME = "oneadmin",
+          SIZE        = "20480",
+          CACHE       = "unsafe"
+        ]
+        CONTEXT = [
+          SSH_PUBLIC_KEY = "$USER[SSH_PUBLIC_KEY]",
+          NETWORK        = "YES",
+          SET_HOSTNAME   = "$NAME"
+        ]
+        GRAPHICS = [
+          TYPE   = "vnc",
+          LISTEN = "0.0.0.0"
+        ]
+        NIC = [
+          NETWORK = "service"
+        ]
+        CPU_MODEL = [
+          MODEL = "host-passthrough"
+        ]
+        EOF
