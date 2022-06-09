@@ -25,6 +25,7 @@
     };
     interfaces = {
       br0.ipv4.addresses = [ { address = "10.2.11.1"; prefixLength = 24; } ];
+      br1.ipv4.addresses = [ { address = "172.20.0.1"; prefixLength = 24; } ];
     };
     nat = {
       enable = true;

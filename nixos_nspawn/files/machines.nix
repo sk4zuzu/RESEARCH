@@ -2,12 +2,13 @@
 
 let
   enable1 = true;
+  enable2 = true;
 in {
   systemd.targets.machines.enable = true;
 
   systemd.nspawn = {
     sigma = {
-      enable = enable1;
+      enable = enable2;
       wantedBy = [ "machines.target" ];
       execConfig = {
         Boot = true;
@@ -100,7 +101,7 @@ in {
 
   systemd.services = {
     "systemd-nspawn@sigma" = {
-      enable = enable1;
+      enable = enable2;
       wantedBy = [ "machines.target" ];
       bindsTo = [ "sys-devices-virtual-net-br0.device" ];
       after = [ "sys-devices-virtual-net-br0.device" ];
@@ -158,3 +159,4 @@ in {
     };
   };
 }
+# vim:ts=2:sw=2:et:syn=nix:

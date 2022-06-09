@@ -1,10 +1,10 @@
 SHELL := $(shell which bash)
 SELF  := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 
-RELEASE_focal := release-20220118
+RELEASE_focal := release-20220511
 TARBALL_focal := ubuntu-20.04-minimal-cloudimg-amd64-root.tar.xz
 
-COMMON_APT := apt-transport-https bash bridge-utils curl file gawk git gnupg2 groff htop ifupdown iproute2 iptables iputils-ping jq mc neovim net-tools openssh-client openssh-server ripgrep ruby sudo systemd-container uuid-runtime wget
+COMMON_APT := apt-transport-https bash bridge-utils curl file gawk git gnupg2 groff htop ifupdown iproute2 iptables iputils-ping jq libxml2-utils mc neovim net-tools openssh-client openssh-server ripgrep ruby sudo systemd-container uuid-runtime wget
 
 define SSH_CONFIG
 StrictHostKeyChecking no
@@ -22,7 +22,7 @@ define HOSTS
 ff02::1      ip6-allnodes
 ff02::2      ip6-allrouters
 10.2.11.30 sigma
-10.2.11.40 delta
+10.2.11.40 delta services storage
 10.2.11.50 epsilon
 10.2.11.60 omicron
 endef
@@ -55,6 +55,11 @@ iface br0 inet static
     bridge_ports host0
     address 10.2.11.$(1)/24
     gateway 10.2.11.1
+auto tap0
+iface tap0 inet manual
+    pre-up ip tuntap add tap0 mode tap user root
+    up ip link set dev tap0 up
+    post-down ip link delete dev tap0
 endef
 
 define bootstrap_ubuntu_chroot
@@ -73,10 +78,12 @@ curl -fsSLo $(SELF)/$(2)-$(RELEASE_$(2)).tar.xz -C- https://cloud-images.ubuntu.
 install -d $(1) && tar -xf $(SELF)/$(2)-$(RELEASE_$(2)).tar.xz -C $(1)
 echo "deb mirror://mirrors.ubuntu.com/mirrors.txt $(2)              main restricted universe"  >$(1)/etc/apt/sources.list
 echo "deb mirror://mirrors.ubuntu.com/mirrors.txt $(2)-updates      main restricted"          >>$(1)/etc/apt/sources.list
+echo "deb http://archive.ubuntu.com/ubuntu        $(2)              main restricted universe" >>$(1)/etc/apt/sources.list
+echo "deb http://archive.ubuntu.com/ubuntu        $(2)-updates      main restricted"          >>$(1)/etc/apt/sources.list
 echo "deb http://security.ubuntu.com/ubuntu       $(2)-security     main restricted universe" >>$(1)/etc/apt/sources.list
 echo "deb https://apt.releases.hashicorp.com      $(2)              main"                     >>$(1)/etc/apt/sources.list
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] \
-	      https://apt.kubernetes.io               kubernetes-xenial main"                     >>$(1)/etc/apt/sources.list
+          https://apt.kubernetes.io               kubernetes-xenial main"                     >>$(1)/etc/apt/sources.list
 install -D /dev/fd/0 $(1)/run/systemd/resolve/stub-resolv.conf <<< "nameserver 1.1.1.1"
 mount -t proc proc $(1)/proc/
 chroot $(1)/ /bin/env -i bash --noprofile --norc -ec "$(call bootstrap_ubuntu_chroot,$(3))"
@@ -136,10 +143,10 @@ sigma: $(SELF)/sigma/
 	$(call configure_ubuntu,$@,$<)
 
 $(SELF)/sigma/:
-	$(call bootstrap_ubuntu,$@,focal,$(COMMON_APT) cloud-utils gcc kubectl libguestfs0 libguestfs-tools linux-image-generic make nodejs packer ruby-bundler ruby-dev tmux yarnpkg)
+	$(call bootstrap_ubuntu,$@,focal,$(COMMON_APT) cloud-utils gcc kubectl libguestfs0 libguestfs-tools linux-image-generic make nodejs packer ruby-bundler ruby-dev s3cmd tmux yarnpkg)
 
 start-sigma:
-	machinectl start sigma
+	-machinectl start sigma
 
 stop-sigma:
 	-machinectl stop sigma
@@ -164,7 +171,7 @@ delta: $(SELF)/delta/
 	$(call configure_ubuntu,$@,$<)
 
 $(SELF)/delta/:
-	$(call bootstrap_ubuntu,$@,focal,$(COMMON_APT))
+	$(call bootstrap_ubuntu,$@,focal,$(COMMON_APT) augeas-lenses augeas-tools libaugeas-dev python3-pip python3-virtualenv)
 
 start-delta:
 	machinectl start delta
