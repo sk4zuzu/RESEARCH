@@ -54,6 +54,7 @@
         vm_group = vm['TEMPLATE']['VMGROUP']
         [vm['TEMPLATE']['NIC']].flatten.each do |nic|
             next if nic['NETWORK'] == 'service'
+            next if nic['NETWORK'] == 'private'
             vnet = OpenNebula::VirtualNetwork.new_with_id(nic['NETWORK_ID'].to_i, client)
             rc   = vnet.info
             next if OpenNebula.is_error?(rc)
