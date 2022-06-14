@@ -3,10 +3,9 @@ SELF  := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 
 NAME := ubuntu
 
-RELEASE  := focal/release-20220322
+RELEASE  := focal/release-20220609
 ARTIFACT := ubuntu-20.04-minimal-cloudimg-amd64.img
-
-CHECKSUM := 86db070f7a645898cd5eb5aeeafb31e0d94b83f81fd4d3cf56445026c0e26ded
+CHECKSUM := e0807db19f85b231dbcb562096f2cf2f6afed6c5c4de981b2042811d44654be2
 
 CPUS      ?= 1
 MEMORY    ?= 1024
