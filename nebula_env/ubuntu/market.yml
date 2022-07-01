@@ -72,6 +72,8 @@
         set -o errexit
         cat >/etc/systemd/system/market-watcher.path <<'EOF'
         [Path]
+        PathModified=/opt/marketplace/appliances/OneKE_CE/
+        PathModified=/opt/marketplace/appliances/OneKE_EE/
         PathModified=/opt/marketplace/appliances/all/
         PathModified=/opt/marketplace/appliances/apps/
         PathModified=/opt/marketplace/appliances/ec2/
@@ -79,12 +81,10 @@
         PathModified=/opt/marketplace/appliances/firecracker/
         PathModified=/opt/marketplace/appliances/flow/
         PathModified=/opt/marketplace/appliances/iso/
-        PathModified=/opt/marketplace/appliances/k8s/
         PathModified=/opt/marketplace/appliances/kernel/
         PathModified=/opt/marketplace/appliances/kvm/
         PathModified=/opt/marketplace/appliances/service/
         PathModified=/opt/marketplace/appliances/vcenter/
-        PathModified=/opt/marketplace/appliances/asd/
         [Install]
         WantedBy=multi-user.target
         EOF
