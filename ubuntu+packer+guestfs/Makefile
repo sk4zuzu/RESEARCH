@@ -18,6 +18,7 @@ HEADLESS   ?= true
 DEBUG            ?= 1
 LIBGUESTFS_DEBUG ?= $(DEBUG)
 GUESTFISH        := guestfish
+VIRT_SYSPREP     := virt-sysprep
 VIRT_SPARSIFY    := virt-sparsify
 QEMU_IMG         := qemu-img
 
@@ -97,6 +98,13 @@ post-process: $(SELF)/.cache/output/packer-$(NAME).qcow2 $(SRC_SCRIPTS) $(SELF)/
 	: glob chmod 0755 $(DST_DIR)/* \
 	$(foreach item,$(DST_SCRIPTS),: command '$(item)') \
 	: rm-rf $(DST_DIR)
+	# reset / "sysprep" the image
+	$(VIRT_SYSPREP) --add $< \
+	--selinux-relabel \
+	--root-password disabled \
+	--hostname localhost.localdomain \
+	--run-command 'truncate -s0 -c /etc/machine-id' \
+	--delete /etc/resolv.conf
 	# decrease image size
 	$(VIRT_SPARSIFY) --in-place $<
 	$(QEMU_IMG) convert -c -O qcow2 $< $(SELF)/.cache/$(NAME).qcow2
