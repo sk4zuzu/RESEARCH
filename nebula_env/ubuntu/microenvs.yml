@@ -83,45 +83,79 @@
         COMMAND         = "/$(which base64) -d | xmllint --xpath '/VM/ID/text()' - | /var/lib/one/remotes/hooks/cleanup/vnet_vmgroup.rb"
         EOF
 
-    - shell: |
-        set -o errexit
-        oneimage show "{{ item }}" || oneimage create -d 1 /dev/fd/0 <<'EOF'
-        NAME       = "{{ item }}"
-        TYPE       = "OS"
-        DEV_PREFIX = "sd"
-        FORMAT     = "qcow2"
-        PATH       = "/var/lib/one/datastores/img/{{ item }}.qcow2"
-        SIZE       = "20480"
-        EOF
-      loop: [ubuntu2004, ubuntu2204, alma8]
+    - vars:
+        _appliances:
+          - ubuntu2204min
+          - ubuntu2004min
+          - ubuntu1804min
+          - ubuntu2204
+          - ubuntu2004
+          - ubuntu1804
+          - ubuntu1604
+          - rocky8
+          - rhel9
+          - rhel8
+          - rhel7
+          - opensuse15
+          - ol8
+          - ol7
+          - fedora35
+          - fedora34
+          - devuan2
+          - debian12
+          - debian11
+          - debian10
+          - centos8stream
+          - centos7
+          - amazon2
+          - alt_sisyphus
+          - alt9
+          - alt10
+          - alpine315
+          - alpine314
+          - alpine313
+          - alma9
+          - alma8
+      block:
+        - shell: |
+            set -o errexit
+            oneimage show "{{ item }}" || oneimage create -d 1 /dev/fd/0 <<'EOF'
+            NAME       = "{{ item }}"
+            TYPE       = "OS"
+            DEV_PREFIX = "sd"
+            FORMAT     = "qcow2"
+            PATH       = "/var/lib/one/datastores/img/{{ item }}.qcow2"
+            SIZE       = "40960"
+            EOF
+          loop: "{{ _appliances }}"
 
-    - shell: |
-        set -o errexit
-        onetemplate show "{{ item }}" || onetemplate create /dev/fd/0 <<'EOF'
-        NAME   = "{{ item }}"
-        CPU    = "0.5"
-        VCPU   = "1"
-        MEMORY = "1536"
-        DISK = [
-          IMAGE       = "{{ item }}",
-          IMAGE_UNAME = "oneadmin",
-          SIZE        = "20480",
-          CACHE       = "unsafe"
-        ]
-        CONTEXT = [
-          SSH_PUBLIC_KEY = "$USER[SSH_PUBLIC_KEY]",
-          NETWORK        = "YES",
-          SET_HOSTNAME   = "$NAME"
-        ]
-        GRAPHICS = [
-          TYPE   = "vnc",
-          LISTEN = "0.0.0.0"
-        ]
-        NIC = [
-          NETWORK = "service"
-        ]
-        CPU_MODEL = [
-          MODEL = "host-passthrough"
-        ]
-        EOF
-      loop: [ubuntu2004, ubuntu2204, alma8]
+        - shell: |
+            set -o errexit
+            onetemplate show "{{ item }}" || onetemplate create /dev/fd/0 <<'EOF'
+            NAME   = "{{ item }}"
+            CPU    = "0.5"
+            VCPU   = "1"
+            MEMORY = "1536"
+            DISK = [
+              IMAGE       = "{{ item }}",
+              IMAGE_UNAME = "oneadmin",
+              SIZE        = "40960",
+              CACHE       = "unsafe"
+            ]
+            CONTEXT = [
+              SSH_PUBLIC_KEY = "$USER[SSH_PUBLIC_KEY]",
+              NETWORK        = "YES",
+              SET_HOSTNAME   = "$NAME"
+            ]
+            GRAPHICS = [
+              TYPE   = "vnc",
+              LISTEN = "0.0.0.0"
+            ]
+            NIC = [
+              NETWORK = "service"
+            ]
+            CPU_MODEL = [
+              MODEL = "host-passthrough"
+            ]
+            EOF
+          loop: "{{ _appliances }}"
