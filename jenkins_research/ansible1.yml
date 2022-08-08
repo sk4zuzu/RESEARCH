@@ -1,0 +1,46 @@
+---
+- hosts: jenkins
+  gather_facts: true
+  tasks: []
+
+- hosts: jenkins
+  tasks:
+    - apt_key:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io.key
+        state: present
+
+    - apt_repository:
+        repo: deb https://pkg.jenkins.io/debian binary/
+        state: present
+      register: result
+      until: result is success
+
+    - apt: { update_cache: true }
+    - apt:
+        pkg:
+          - jenkins
+          - openjdk-11-jdk
+        state: present
+        policy_rc_d: 101 # do not start jenkins
+      register: result
+      until: result is success
+
+    - block:
+        - file:
+            path: /etc/systemd/system/jenkins.service.d/
+            mode: u=rwx,go=rx
+            state: directory
+
+        - copy:
+            dest: /etc/systemd/system/jenkins.service.d/override.conf
+            mode: u=rw,go=r
+            content: |
+              [Service]
+              Environment="JAVA_OPTS=-Djava.awt.headless=true -Djenkins.install.runSetupWizard=false -Dcasc.jenkins.config=/var/lib/jenkins/jcasc_configs"
+              Environment="JENKINS_LISTEN_ADDRESS=127.0.0.1"
+
+    - systemd: { daemon_reload: true }
+    - systemd:
+        name: jenkins
+        enabled: true
+        state: started

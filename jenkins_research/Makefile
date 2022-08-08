@@ -48,3 +48,8 @@ cli: $(SELF)/jenkins-cli.jar
 
 $(SELF)/jenkins-cli.jar:
 	curl -fsSLo $@ http://jenkins.poc.svc:8080/jnlpJars/jenkins-cli.jar
+
+.PHONY: ansible1
+
+ansible1: $(SELF)/scenario1.ini $(SELF)/ansible1.yml
+	cd $(SELF)/ && ansible-playbook -vv -i $^
