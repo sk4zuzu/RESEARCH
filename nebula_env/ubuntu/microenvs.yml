@@ -99,6 +99,7 @@
           - opensuse15
           - ol8
           - ol7
+          - marketbuilder
           - fedora35
           - fedora34
           - devuan2
@@ -129,7 +130,15 @@
             EOF
           loop: "{{ _appliances }}"
 
-        - shell: |
+        - slurp:
+            path: /var/lib/one/.ssh/id_rsa.pub
+          register: slurp_oneadmin_id_rsa_pub
+
+        - vars:
+            _sep: "\n"
+            _id_rsa_pub: >-
+              {{ (slurp_oneadmin_id_rsa_pub.content | b64decode).splitlines()[0] | trim }}
+          shell: |
             set -o errexit
             onetemplate show "{{ item }}" || onetemplate create /dev/fd/0 <<'EOF'
             NAME   = "{{ item }}"
@@ -143,7 +152,7 @@
               CACHE       = "unsafe"
             ]
             CONTEXT = [
-              SSH_PUBLIC_KEY = "$USER[SSH_PUBLIC_KEY]",
+              SSH_PUBLIC_KEY = "{{ _id_rsa_pub }}{{ _sep }}$USER[SSH_PUBLIC_KEY]",
               NETWORK        = "YES",
               SET_HOSTNAME   = "$NAME"
             ]
