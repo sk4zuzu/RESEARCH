@@ -1,0 +1,95 @@
+---
+- hosts: ubuntu
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  environment: &environment
+    DEBIAN_FRONTEND: noninteractive
+  gather_facts: true
+  tasks: []
+
+- hosts: ubuntu
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        apt-get -q update -y
+
+    - shell: |
+        set -o errexit
+        apt-get -q install -y gcc git make nodejs ruby-bundler ruby-dev yarnpkg
+
+    - shell: |
+        set -o errexit
+        install -d /opt/marketplace/ && cd $_
+        git clone https://github.com/sk4zuzu/marketplace.git . || git pull origin
+
+    - shell: |
+        set -o errexit
+        install -d /opt/appmarket-simple/ && cd $_
+        git clone https://github.com/sk4zuzu/appmarket-simple.git . || git pull origin
+
+    - shell: |
+        set -o errexit
+        cd /opt/appmarket-simple/src/
+        [[ -e data ]] || ln -s ../../marketplace/ data
+        [[ -e public/logos ]] || ln -s ../data/logos public/logos
+
+    - shell: |
+        set -o errexit
+        cd /opt/appmarket-simple/src/
+        bundle update --bundler
+        bundle install
+
+    - shell: |
+        set -o errexit
+        cat >/etc/systemd/system/market.service <<'EOF'
+        [Unit]
+        After=network.target
+        [Service]
+        Type=simple
+        WorkingDirectory=/opt/appmarket-simple/src/
+        ExecStart=/bin/bash -c 'exec bundler exec rackup -o 0.0.0.0'
+        User=root
+        Group=root
+        [Install]
+        WantedBy=multi-user.target
+        EOF
+
+    - shell: |
+        set -o errexit
+        cat >/etc/systemd/system/market-watcher.service <<'EOF'
+        [Unit]
+        After=network.target
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/systemctl restart market.service
+        [Install]
+        WantedBy=multi-user.target
+        EOF
+
+    - shell: |
+        set -o errexit
+        cat >/etc/systemd/system/market-watcher.path <<'EOF'
+        [Path]
+        PathModified=/opt/marketplace/appliances/OneKE_CE/
+        PathModified=/opt/marketplace/appliances/OneKE_EE/
+        PathModified=/opt/marketplace/appliances/all/
+        PathModified=/opt/marketplace/appliances/apps/
+        PathModified=/opt/marketplace/appliances/ec2/
+        PathModified=/opt/marketplace/appliances/edge/
+        PathModified=/opt/marketplace/appliances/firecracker/
+        PathModified=/opt/marketplace/appliances/flow/
+        PathModified=/opt/marketplace/appliances/iso/
+        PathModified=/opt/marketplace/appliances/kernel/
+        PathModified=/opt/marketplace/appliances/kvm/
+        PathModified=/opt/marketplace/appliances/service/
+        PathModified=/opt/marketplace/appliances/vcenter/
+        [Install]
+        WantedBy=multi-user.target
+        EOF
+
+    - shell: |
+        set -o errexit
+        systemctl daemon-reload
+        systemctl enable market.service market-watcher.service market-watcher.path --now

@@ -1,0 +1,155 @@
+---
+- hosts: ubuntu
+  strategy: linear
+  gather_facts: false
+  tasks:
+    - script: "{{ playbook_dir }}/script/python3.sh"
+      args: { executable: /bin/bash, creates: /usr/bin/python3 }
+
+- hosts: ubuntu
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  environment: &environment
+    DEBIAN_FRONTEND: noninteractive
+  gather_facts: true
+  tasks: []
+
+- hosts: ubuntu
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - when:
+        - allowed_ipv4 is defined
+        - allowed_ipv4 is string
+        - allowed_ipv4 | length > 0
+      shell: |
+        set -o errexit
+        iptables -A INPUT -p tcp -i bond0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+        iptables -A INPUT -p tcp -i bond0 ! -s {{ allowed_ipv4 }} -d 0/0 -j DROP
+
+    - shell: |
+        set -o errexit
+        KUBECTL_VERSION=$(curl -fsSL https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+        curl -fsSLO https://storage.googleapis.com/kubernetes-release/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl
+        chmod u=rwx,go=rx /usr/local/bin/kubectl
+      args: { creates: /usr/local/bin/kubectl, chdir: /usr/local/bin/ }
+
+    - shell: |
+        set -o errexit
+        install -o 0 -g 0 -m u=rwx,go= -d /root/.kube/
+      args: { creates: /root/.kube/ }
+
+    - shell: |
+        set -o errexit -o pipefail
+        curl -fsSL https://github.com/OpenNebula/minione/releases/download/v{{ minione_version }}/minione \
+        | install -m+x /dev/fd/0 -D /usr/local/bin/minione
+      args: { creates: /usr/local/bin/minione }
+
+    - shell: |
+        set -o errexit
+        minione --force --yes {{ ( "--enterprise" ~ one_token ) if one_token is defined else "" }} \
+        --version {{ one_version }} \
+        --password {{ one_password }} \
+        --vm-password {{ one_password }} \
+        --marketapp-name 'Service Kubernetes 1.24' \
+        {{ minione_args | default('') }}
+
+    - shell: |
+        set -o errexit
+        install -D /dev/fd/0 /etc/dnsmasq.d/upstream <<'EOF'
+        server=1.1.1.1
+        EOF
+        systemctl restart dnsmasq.service
+      ignore_errors: true
+
+    - shell: |
+        set -o errexit
+        onevnet show "private" || onevnet create /dev/fd/0 <<'EOF'
+        NAME   = "private"
+        VN_MAD = "bridge"
+        BRIDGE = "privatebr"
+        AR = [
+          TYPE = "IP4",
+          IP   = "172.20.100.100",
+          SIZE = "100" ]
+        NETWORK_ADDRESS = "172.20.100.0"
+        NETWORK_MASK    = "255.255.255.0"
+        DNS             = "1.1.1.1"
+        EOF
+
+    - shell: |
+        set -o errexit
+        cat >/root/nginx-with-pvc-and-ingress.yml <<'EOF'
+        ---
+        kind: Deployment
+        apiVersion: apps/v1
+        metadata:
+          name: nginx
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: nginx
+          template:
+            metadata:
+              labels:
+                app: nginx
+            spec:
+              containers:
+              - name: http
+                image: nginx:alpine
+                imagePullPolicy: IfNotPresent
+                ports:
+                - name: http
+                  containerPort: 80
+                volumeMounts:
+                - mountPath: /test/
+                  name: test
+              volumes:
+              - name: test
+                persistentVolumeClaim:
+                  claimName: test
+        ---
+        apiVersion: v1
+        kind: PersistentVolumeClaim
+        metadata:
+          name: test
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          volumeMode: Filesystem
+          resources:
+            requests:
+              storage: 4Gi
+          storageClassName: longhorn-retain
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: nginx
+        spec:
+          selector:
+            app: nginx
+          type: ClusterIP
+          ports:
+            - name: http
+              protocol: TCP
+              port: 80
+              targetPort: 80
+        ---
+        apiVersion: traefik.containo.us/v1alpha1
+        kind: IngressRoute
+        metadata:
+          name: nginx
+        spec:
+          entryPoints: [web]
+          routes:
+            - kind: Rule
+              match: Path(`/`)
+              services:
+                - kind: Service
+                  name: nginx
+                  port: 80
+                  scheme: http
+        EOF
+      args: { creates: /root/nginx-with-pvc-and-ingress.yml }

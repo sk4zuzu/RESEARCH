@@ -1,0 +1,6 @@
+[all:vars]
+ansible_user=root
+one_password=asd
+
+[ubuntu]
+ubuntu1 ansible_host=I.P.V.4 ansible_port=22
