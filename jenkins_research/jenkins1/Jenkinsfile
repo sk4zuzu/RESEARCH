@@ -1,26 +1,16 @@
 #!/usr/bin/env groovy
 
-node('agent1 || agent2') {
-    stage('asd') {
-        sh 'uname -a'
-        print "NODE_NAME = ${env.NODE_NAME}"
+def asd() {
+    dir('/tmp/') {
+        def asd_path = findFiles glob: '**/*-asd.json'
+        def asd_json = readJSON file: asd_path[0].path
+        println asd_json['asd']
     }
 }
 
-def JOBS = [ 'job1', 'job2', 'job3' ]
-
-node('agents') {
-    stage('s1') {
-        sh 'uname -a'
-        print "s1: NODE_NAME = ${env.NODE_NAME}"
-
-        JOBS.each { job ->
-            node('agents') {
-                stage(job) {
-                    sh 'uname -a'
-                    print "${job}: NODE_NAME = ${env.NODE_NAME}"
-                }
-            }
-        }
-    }
+node('agent1') {
+    sh "rm -rf /tmp/asd/"
+    sh "install -d /tmp/asd/"
+    sh "echo '{\"asd\": 86}' >/tmp/asd/123-asd.json"
+    asd()
 }

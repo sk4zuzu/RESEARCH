@@ -4,6 +4,7 @@ git:latest
 job-dsl:latest
 leastload:latest
 matrix-auth:latest
+pipeline-utility-steps:latest
 ssh-slaves:latest
 strict-crumb-issuer:latest
 workflow-aggregator:latest
