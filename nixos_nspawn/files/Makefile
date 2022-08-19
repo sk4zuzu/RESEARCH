@@ -1,7 +1,7 @@
 SHELL := $(shell which bash)
 SELF  := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 
-RELEASE_focal := release-20220511
+RELEASE_focal := release-20220616
 TARBALL_focal := ubuntu-20.04-minimal-cloudimg-amd64-root.tar.xz
 
 COMMON_APT := apt-transport-https bash bridge-utils curl file gawk git gnupg2 groff htop ifupdown iproute2 iptables iputils-ping jq libxml2-utils mc neovim net-tools openssh-client openssh-server ripgrep ruby sudo systemd-container uuid-runtime wget

@@ -17,7 +17,7 @@ variable "plan" {
 
 variable "facilities" {
   type    = list(string)
-  default = ["fr2"]
+  default = ["pa4"]
 }
 
 variable "operating_system" {

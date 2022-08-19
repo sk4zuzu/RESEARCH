@@ -100,6 +100,9 @@ in {
   };
 
   systemd.services = {
+    "systemd-networkd-wait-online".serviceConfig.ExecStart = [
+      "" "${config.systemd.package}/lib/systemd/systemd-networkd-wait-online --any"
+    ];
     "systemd-nspawn@sigma" = {
       enable = enable2;
       wantedBy = [ "machines.target" ];
