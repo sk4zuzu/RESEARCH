@@ -1,0 +1,12 @@
+# vim: syn=systemd
+[Unit]
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/bin/ruby -wd /proxysvc.rb
+
+[Install]
+WantedBy=multi-user.target

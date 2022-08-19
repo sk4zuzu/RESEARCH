@@ -1,0 +1,104 @@
+---
+- hosts: service:hypervisor:guest
+  gather_facts: true
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  tasks: []
+
+- hosts: service:hypervisor:guest
+  module_defaults: *module_defaults
+  tasks:
+    - apt:
+        name: [gcc, iproute2, iptables, make, ruby, ruby-dev]
+        update_cache: true
+
+    - gem:
+        name: async-io
+        user_install: false
+
+- hosts: service
+  module_defaults: *module_defaults
+  tasks:
+    - copy:
+        dest: /echosvc.rb
+        mode: u=rw,go=r
+        src: "{{ playbook_dir }}/echosvc.rb"
+      register: copy_echosvc_rb
+
+    - template:
+        dest: /etc/systemd/system/echosvc.service
+        mode: u=rw,go=r
+        src: "{{ playbook_dir }}/echosvc.service"
+      register: template_echosvc_service
+
+    - systemd:
+        name: echosvc.service
+        state: restarted
+        enabled: true
+        daemon_reload: true
+      when: (copy_echosvc_rb is changed) or (template_echosvc_service is changed)
+
+- hosts: hypervisor
+  module_defaults: *module_defaults
+  tasks:
+    - shell: |
+        {{ _args | iptables_cmd(table='mangle', chain='PREROUTING') }}
+      vars:
+        _args: >-
+          -p tcp -m tcp --dport 5030 -j TPROXY
+          --on-port 5030
+          --on-ip 169.254.169.254
+          --tproxy-mark 0x13a6/0xffffffff
+
+    - shell: |
+        ip neighbor replace proxy 169.254.169.254 dev u2
+
+    - shell: |
+        {{ _args | ip_rule_replace_cmd }}
+      vars:
+        _args: >-
+          fwmark 0x13a6/0xffffffff lookup 5030
+
+    - shell: |
+        ip route replace local 0.0.0.0/0 dev lo table 5030
+
+    - copy:
+        dest: /proxysvc.rb
+        mode: u=rw,go=r
+        src: "{{ playbook_dir }}/proxysvc.rb"
+      register: copy_proxysvc_rb
+
+    - template:
+        dest: /etc/systemd/system/proxysvc.service
+        mode: u=rw,go=r
+        src: "{{ playbook_dir }}/proxysvc.service"
+      register: template_proxysvc_service
+
+    - systemd:
+        name: proxysvc.service
+        state: restarted
+        enabled: true
+        daemon_reload: true
+      when: (copy_proxysvc_rb is changed) or (template_proxysvc_service is changed)
+
+- hosts: guest
+  module_defaults: *module_defaults
+  tasks:
+    - shell: |
+        ip route replace 169.254.169.254/32 dev eth0
+
+    - copy:
+        dest: /beaconsvc.rb
+        mode: u=rw,go=r
+        src: "{{ playbook_dir }}/beaconsvc.rb"
+
+    - template:
+        dest: /etc/systemd/system/beaconsvc.service
+        mode: u=rw,go=r
+        src: "{{ playbook_dir }}/beaconsvc.service"
+
+    - systemd:
+        name: beaconsvc.service
+        state: restarted
+        enabled: true
+        daemon_reload: true

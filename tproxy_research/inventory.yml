@@ -1,0 +1,15 @@
+all:
+  vars:
+    ansible_user: ubuntu
+
+service:
+  hosts:
+    v1b1: { ansible_host: v1b1 }
+
+hypervisor:
+  hosts:
+    v1a1: { ansible_host: v1a1 }
+
+guest:
+  hosts:
+    u2a1: { ansible_host: u2a1 }
