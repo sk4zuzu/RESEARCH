@@ -276,13 +276,22 @@
         - one
 
     - copy:
-        dest: /var/lib/one/.ssh/config
-        owner: oneadmin
-        group: oneadmin
+        dest: "{{ item.dest }}"
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
         mode: u=rw,go=
         content: |
           StrictHostKeyChecking no
           UserKnownHostsFile /dev/null
+      loop:
+        - { dest: /var/lib/one/.ssh/config, owner: oneadmin, group: oneadmin }
+        - { dest: /root/.ssh/config       , owner: root    , group: root     }
+
+    - copy:
+        dest: /root/.ssh/id_rsa
+        src: /var/lib/one/.ssh/id_rsa
+        remote_src: true
+        mode: u=rw,go=
 
 - hosts: opennebula[0]
   module_defaults: *module_defaults
