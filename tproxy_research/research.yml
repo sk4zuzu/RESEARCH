@@ -14,6 +14,7 @@
 
     - gem:
         name: async-io
+        version: 1.32.1
         user_install: false
 
 - hosts: service
