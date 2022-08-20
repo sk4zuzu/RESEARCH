@@ -1,5 +1,5 @@
 ---
-- hosts: opennebula
+- hosts: opennebula:services
   module_defaults: &module_defaults
     shell: { executable: /bin/bash }
   environment: &environment
@@ -7,7 +7,7 @@
   gather_facts: true
   tasks: []
 
-- hosts: opennebula
+- hosts: services
   module_defaults: *module_defaults
   environment: *environment
   tasks:
@@ -94,7 +94,8 @@
         systemctl daemon-reload
         systemctl enable market.service market-watcher.service market-watcher.path --now
 
-    - shell: |
+    - delegate_to: "{{ groups.opennebula[0] }}"
+      shell: |
         set -o errexit
         onemarket update -a 0 /dev/fd/0 <<'EOF'
         ENDPOINT = "http://{{ inventory_hostname_short }}:9292/"
@@ -102,28 +103,31 @@
 
     - shell: |
         set -o errexit
+        apt-get -q install -y nginx
 
-        cat >/etc/apache2/sites-available/market.conf <<'EOF'
-        <VirtualHost *:80>
-          ServerName services
-          DocumentRoot /_shared
-          <Directory /_shared>
-             Require all granted
-             Options +Indexes
-          </Directory>
-        </VirtualHost>
-        <VirtualHost *:80>
-          ServerName storage
-          DocumentRoot /_shared
-          <Directory /_shared>
-             Require all granted
-             Options +Indexes
-          </Directory>
-        </VirtualHost>
+    - shell: |
+        set -o errexit
+
+        cat >/etc/nginx/sites-available/market <<'EOF'
+        server {
+          listen 80;
+          server_name services storage;
+          root /_shared/;
+          location / {
+            autoindex on;
+            try_files $uri $uri/ =404;
+          }
+        }
         EOF
 
-        a2ensite market
+        rm -f /etc/nginx/sites-enabled/market
+        ln -s ../sites-available/market /etc/nginx/sites-enabled/market
 
-        systemctl restart apache2
+        chmod -R o+rX /_shared/{images,mirror}/
+
+        rm -rf /usr/share/nginx/html/
+        ln -s /_shared/ /usr/share/nginx/html
+
+        systemctl reload nginx
       args:
-        creates: /etc/apache2/sites-available/market.conf
+        creates: /etc/nginx/sites-enabled/market
