@@ -47,12 +47,9 @@
       vars:
         _args: >-
           -p tcp -m tcp --dport 5030 -j TPROXY
-          --on-port 5030
-          --on-ip 169.254.169.254
+          --on-ip 127.0.0.1
+          --on-port 7777
           --tproxy-mark 0x13a6/0xffffffff
-
-    - shell: |
-        ip neighbor replace proxy 169.254.169.254 dev u2
 
     - shell: |
         {{ _args | ip_rule_replace_cmd }}
@@ -85,9 +82,6 @@
 - hosts: guest
   module_defaults: *module_defaults
   tasks:
-    - shell: |
-        ip route replace 169.254.169.254/32 dev eth0
-
     - copy:
         dest: /beaconsvc.rb
         mode: u=rw,go=r
