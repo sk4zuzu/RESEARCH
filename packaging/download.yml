@@ -1,0 +1,69 @@
+---
+- name: Define facts
+  set_fact:
+    binaries:
+      - key: prometheus
+        url: "{{ prometheus_url }}"
+        bin: /var/tmp/prometheus-bin.tar.gz
+        dir: /var/tmp/prometheus/prometheus-1.2.3/
+        src: /var/tmp/prometheus-1.2.3.tar.gz
+
+- name: Download binaries
+  get_url:
+    url: "{{ item.url }}"
+    dest: "{{ item.bin }}"
+    owner: "{{ process_uid }}"
+    group: "{{ process_gid }}"
+    mode: u=rw,go=r
+  loop: "{{ binaries }}"
+  register: get_url_binaries
+
+- name: Create directories
+  file:
+    path: "{{ item.dir }}"
+    state: directory
+    owner: "{{ process_uid }}"
+    group: "{{ process_gid }}"
+    mode: u=rwx,go=rx
+  loop: "{{ binaries }}"
+  register: file_directories
+
+- name: Extract binaries
+  unarchive:
+    src: "{{ item.bin }}"
+    dest: "{{ item.dir }}"
+    remote_src: true
+    extra_opts: ["--strip-components=1"]
+    owner: "{{ process_uid }}"
+    group: "{{ process_gid }}"
+  loop: "{{ binaries }}"
+  when: get_url_binaries is changed or file_directories is changed
+
+- name: Install systemd units
+  template:
+    src: "{{ playbook_dir }}/templates/{{ item.key }}.service.j2"
+    dest: "{{ item.dir }}/{{ item.key }}.service"
+    owner: "{{ process_uid }}"
+    group: "{{ process_gid }}"
+    mode: u=rw,go=r
+  loop: "{{ binaries }}"
+
+- name: Render selinux module
+  template:
+    src: "{{ playbook_dir }}/templates/{{ item.0.key }}{{ item.1 }}.j2"
+    dest: "{{ item.0.dir }}/{{ item.0.key }}{{ item.1 }}"
+    owner: "{{ process_uid }}"
+    group: "{{ process_gid }}"
+    mode: u=rw,go=r
+  loop: "{{ binaries | product(_selinux) | list }}"
+  vars:
+    _selinux: [.fc, .if, .te]
+
+- name: Create source archive
+  archive:
+    path: "{{ item.dir | dirname }}"
+    dest: "{{ item.src }}"
+    owner: "{{ process_uid }}"
+    group: "{{ process_gid }}"
+    mode: u=rw,go=r
+  loop: "{{ binaries }}"

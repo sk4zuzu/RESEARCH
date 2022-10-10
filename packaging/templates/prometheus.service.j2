@@ -1,0 +1,15 @@
+# vim: syn=systemd
+
+[Service]
+User={{ process_uid }}
+Group={{ process_gid }}
+Type=simple
+
+ExecStartPre=/usr/bin/install -m u=rwx,g=rx,o= -d /var/lib/prometheus/data/
+
+ExecStart=/usr/bin/prometheus \
+          --config.file=/var/lib/prometheus/prometheus.yml \
+          --storage.tsdb.path=/var/lib/prometheus/data/
+
+[Install]
+WantedBy=multi-user.target

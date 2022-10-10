@@ -1,0 +1,13 @@
+---
+- hosts: all
+  module_defaults:
+    shell: { executable: /bin/bash }
+  gather_facts: true
+  tasks:
+    - include_tasks: "{{ playbook_dir }}/prepare.yml"
+    - include_tasks: "{{ playbook_dir }}/download.yml"
+    - include_tasks: "{{ playbook_dir }}/build_{{ _formats[ansible_os_family] }}.yml"
+      vars:
+        _formats:
+          Debian: deb
+          RedHat: rpm

@@ -1,0 +1,32 @@
+---
+- name: Get user / group info
+  getent:
+    database: passwd
+    key: "{{ ansible_user }}"
+
+- name: Define facts
+  set_fact:
+    process_uid: "{{ getent_passwd[ansible_user][1] }}"
+    process_gid: "{{ getent_passwd[ansible_user][2] }}"
+
+- name: Install system packages
+  package:
+    name: "{{ (_common + _packages[ansible_os_family]) | flatten }}"
+    state: present
+  vars:
+    _common: [bash, curl, gzip, mc, tar, vim]
+    _packages:
+      Debian: []
+      RedHat:
+        - [policycoreutils, selinux-policy-devel, selinux-policy-targeted]
+        - mock
+
+- name: Enforce selinux
+  selinux:
+    policy: targeted
+    state: enforcing
+  register: selinux_enforce
+
+- name: Reboot
+  reboot:
+  when: selinux_enforce.reboot_required

@@ -1,0 +1,54 @@
+---
+- name: Define facts
+  set_fact:
+    distros: [alma8]
+    packages:
+      - key: prometheus
+
+- name: Install mock directories
+  file:
+    path: /var/tmp/mock/
+    state: directory
+    mode: u=rwx,go=rx
+
+- name: Render mock templates
+  template:
+    src: "{{ playbook_dir }}/templates/{{ item }}.cfg.j2"
+    dest: "/var/tmp/mock/{{ item }}.cfg"
+    mode: u=rw,go=r
+  loop: "{{ distros }}"
+
+- name: Bootstrap mock chroot
+  shell: |
+    set -o errexit
+    mock -r /var/tmp/mock/{{ item }}.cfg -v \
+      --bootstrap-chroot \
+      --init
+  loop: "{{ distros }}"
+
+- name: Render spec file
+  template:
+    src: "{{ playbook_dir }}/templates/{{ item.key }}.spec.j2"
+    dest: "/var/tmp/mock/{{ item.key }}.spec"
+    mode: u=rw,go=r
+  loop: "{{ packages }}"
+
+- name: Build srpm
+  shell: |
+    set -o errexit
+    mock -r /var/tmp/mock/{{ item.0 }}.cfg -v \
+      --bootstrap-chroot \
+      --buildsrpm \
+      --resultdir /var/tmp/ \
+      --spec '/var/tmp/mock/{{ item.1.key }}.spec' \
+      --sources /var/tmp/
+  loop: "{{ distros | product(packages) | list }}"
+
+- name: Build rpm
+  shell: |
+    set -o errexit
+    mock -r /var/tmp/mock/{{ item.0 }}.cfg -v \
+      --bootstrap-chroot \
+      --rebuild /var/tmp/{{ item.1.key }}-1.2.3-1.el8.src.rpm \
+      --resultdir /var/tmp/
+  loop: "{{ distros | product(packages) | list }}"

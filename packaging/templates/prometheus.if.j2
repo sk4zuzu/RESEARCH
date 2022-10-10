@@ -1,0 +1,154 @@
+## <summary>policy for prometheus</summary>
+
+########################################
+## <summary>
+##	Execute prometheus_exec_t in the prometheus domain.
+## </summary>
+## <param name="domain">
+## <summary>
+##	Domain allowed to transition.
+## </summary>
+## </param>
+#
+interface(`prometheus_domtrans',`
+	gen_require(`
+		type prometheus_t, prometheus_exec_t;
+	')
+
+	corecmd_search_bin($1)
+	domtrans_pattern($1, prometheus_exec_t, prometheus_t)
+')
+
+######################################
+## <summary>
+##	Execute prometheus in the caller domain.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`prometheus_exec',`
+	gen_require(`
+		type prometheus_exec_t;
+	')
+
+	corecmd_search_bin($1)
+	can_exec($1, prometheus_exec_t)
+')
+
+########################################
+## <summary>
+##	Search prometheus lib directories.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`prometheus_search_lib',`
+	gen_require(`
+		type prometheus_var_lib_t;
+	')
+
+	allow $1 prometheus_var_lib_t:dir search_dir_perms;
+	files_search_var_lib($1)
+')
+
+########################################
+## <summary>
+##	Read prometheus lib files.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`prometheus_read_lib_files',`
+	gen_require(`
+		type prometheus_var_lib_t;
+	')
+
+	files_search_var_lib($1)
+	read_files_pattern($1, prometheus_var_lib_t, prometheus_var_lib_t)
+')
+
+########################################
+## <summary>
+##	Manage prometheus lib files.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`prometheus_manage_lib_files',`
+	gen_require(`
+		type prometheus_var_lib_t;
+	')
+
+	files_search_var_lib($1)
+	manage_files_pattern($1, prometheus_var_lib_t, prometheus_var_lib_t)
+')
+
+########################################
+## <summary>
+##	Manage prometheus lib directories.
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+#
+interface(`prometheus_manage_lib_dirs',`
+	gen_require(`
+		type prometheus_var_lib_t;
+	')
+
+	files_search_var_lib($1)
+	manage_dirs_pattern($1, prometheus_var_lib_t, prometheus_var_lib_t)
+')
+
+
+########################################
+## <summary>
+##	All of the rules required to administrate
+##	an prometheus environment
+## </summary>
+## <param name="domain">
+##	<summary>
+##	Domain allowed access.
+##	</summary>
+## </param>
+## <param name="role">
+##	<summary>
+##	Role allowed access.
+##	</summary>
+## </param>
+## <rolecap/>
+#
+interface(`prometheus_admin',`
+	gen_require(`
+		type prometheus_t;
+		type prometheus_var_lib_t;
+	')
+
+	allow $1 prometheus_t:process { signal_perms };
+	ps_process_pattern($1, prometheus_t)
+
+    tunable_policy(`deny_ptrace',`',`
+        allow $1 prometheus_t:process ptrace;
+    ')
+
+	files_search_var_lib($1)
+	admin_pattern($1, prometheus_var_lib_t)
+	optional_policy(`
+		systemd_passwd_agent_exec($1)
+		systemd_read_fifo_file_passwd_run($1)
+	')
+')

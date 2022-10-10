@@ -1,0 +1,97 @@
+# vim:ts=4:sw=4:et:syn=spec:
+
+%undefine _missing_build_ids_terminate_build
+
+%global debug_package %{nil}
+%global selinux_variants mls targeted
+
+Name: prometheus
+Version: 1.2.3
+Release: 1%{?dist}
+Summary: ASD
+
+License: ASD
+URL: ASD
+
+Source0: /var/tmp/prometheus-1.2.3.tar.gz
+
+BuildRequires: selinux-policy-devel
+Requires: selinux-policy
+Requires(post):   /usr/sbin/semodule, /sbin/restorecon, /sbin/fixfiles
+Requires(postun): /usr/sbin/semodule, /sbin/restorecon, /sbin/fixfiles
+
+%description
+
+%prep
+%setup -q
+
+%build
+for SELINUXVARIANT in %{selinux_variants}; do
+    make NAME="$SELINUXVARIANT" -f /usr/share/selinux/devel/Makefile
+    mv prometheus.pp "prometheus.pp.$SELINUXVARIANT"
+    make NAME="$SELINUXVARIANT" -f /usr/share/selinux/devel/Makefile clean
+done
+
+%install
+install -d %{buildroot}/var/lib/prometheus/
+install -d %{buildroot}/usr/bin/
+install -d %{buildroot}/lib/systemd/system/
+
+cp -r ./*                                 %{buildroot}/var/lib/prometheus/
+ln -s /var/lib/prometheus/prometheus      %{buildroot}/usr/bin/prometheus
+ln -s /var/lib/prometheus/promtool        %{buildroot}/usr/bin/promtool
+
+mv %{buildroot}/var/lib/prometheus/prometheus.service %{buildroot}/lib/systemd/system/
+
+for SELINUXVARIANT in %{selinux_variants}; do
+    install -d "%{buildroot}%{_datadir}/selinux/$SELINUXVARIANT"
+    install -D -m u=rw,go=r \
+        "prometheus.pp.$SELINUXVARIANT" \
+        "%{buildroot}%{_datadir}/selinux/$SELINUXVARIANT/prometheus.pp"
+done
+
+%files
+/var/lib/prometheus/
+/usr/bin/prometheus
+/usr/bin/promtool
+/lib/systemd/system/prometheus.service
+/usr/share/selinux/targeted/prometheus.pp
+/usr/share/selinux/mls/prometheus.pp
+
+%post
+chown -R {{ process_uid }}:{{ process_gid }} /var/lib/prometheus/
+for SELINUXVARIANT in %{selinux_variants}; do
+    /usr/sbin/semodule -s "$SELINUXVARIANT" \
+                       -i "%{_datadir}/selinux/$SELINUXVARIANT/prometheus.pp" ||:
+done
+/sbin/fixfiles -R prometheus restore ||:
+systemctl daemon-reload
+case "$1" in
+1) # install
+    systemctl enable --now prometheus.service
+;;
+2) # upgrade
+    systemctl restart prometheus.service
+;;
+esac
+
+%preun
+case "$1" in
+0) # uninstall
+    systemctl disable --now prometheus.service
+;;
+1) # upgrade
+    systemctl stop prometheus.service
+;;
+esac
+
+%postun
+case "$1" in
+0) # uninstall
+    for SELINUXVARIANT in %{selinux_variants}; do
+        /usr/sbin/semodule -s "$SELINUXVARIANT" \
+                           -r prometheus ||:
+    done
+    /sbin/fixfiles -R prometheus restore ||:
+;;
+esac
