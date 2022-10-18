@@ -1,0 +1,106 @@
+---
+version: '2'
+
+networks:
+  default:
+    ipam:
+      driver: default
+      config:
+      - subnet: ${SUBNET_PREFIX}.0/24
+        gateway: ${SUBNET_PREFIX}.1
+
+services:
+  mailpit1:
+    image: ${COMPOSE_PROJECT_NAME}_mailpit1
+    build:
+      context: ./mailpit1/
+      dockerfile: Dockerfile
+    networks:
+      default:
+        aliases: [mailpit1.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.2
+
+  grafana1:
+    image: grafana/grafana-oss:9.2.0
+    networks:
+      default:
+        aliases: [grafana1.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.11
+    volumes:
+      - ./grafana1/provisioning/:/etc/grafana/provisioning/:ro
+    environment: &grafana_environment
+      GF_AUTH_DISABLE_LOGIN_FORM: 'true'
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: 'Admin'
+  grafana2:
+    image: grafana/grafana-oss:9.2.0
+    networks:
+      default:
+        aliases: [grafana2.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.12
+    volumes:
+      - ./grafana2/provisioning/:/etc/grafana/provisioning/:ro
+    environment: *grafana_environment
+
+  alertmanager1:
+    image: prom/alertmanager:v0.24.0
+    networks:
+      default:
+        aliases: [alertmanager1.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.21
+    volumes:
+      - ./alertmanager1/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --cluster.peer=alertmanager2.poc.svc:9094
+  alertmanager2:
+    image: prom/alertmanager:v0.24.0
+    networks:
+      default:
+        aliases: [alertmanager2.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.22
+    volumes:
+      - ./alertmanager2/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+      - --cluster.peer=alertmanager1.poc.svc:9094
+
+  prometheus1:
+    image: prom/prometheus:v2.39.1
+    networks:
+      default:
+        aliases: [prometheus1.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.31
+    volumes:
+      - ./prometheus1/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus1/rules.yml:/etc/prometheus/rules.yml:ro
+  prometheus2:
+    image: prom/prometheus:v2.39.1
+    networks:
+      default:
+        aliases: [prometheus2.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.32
+    volumes:
+      - ./prometheus2/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus2/rules.yml:/etc/prometheus/rules.yml:ro
+
+  exporter1:
+    image: ${COMPOSE_PROJECT_NAME}_exporter1
+    build:
+      context: ./exporter1/
+      dockerfile: Dockerfile
+    networks:
+      default:
+        aliases: [exporter1.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.41
+  exporter2:
+    image: ${COMPOSE_PROJECT_NAME}_exporter2
+    build:
+      context: ./exporter2/
+      dockerfile: Dockerfile
+    networks:
+      default:
+        aliases: [exporter2.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.42

@@ -1,0 +1,9 @@
+apiVersion: 1
+
+datasources:
+  - name: prometheus2
+    type: prometheus
+    access: proxy
+    url: http://prometheus2.poc.svc:9090
+    isDefault: true
+    editable: false

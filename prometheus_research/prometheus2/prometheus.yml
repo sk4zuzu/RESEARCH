@@ -1,0 +1,27 @@
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+      - targets: ['alertmanager2.poc.svc:9093']
+
+rule_files: ['rules.yml']
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: asd1
+    static_configs:
+      - targets: ['10.14.18.41:8686']
+    metric_relabel_configs:
+      - source_labels: ['__name__']
+        regex: '^asd_(up|nil)$'
+        action: keep
+
+  - job_name: asd2
+    static_configs:
+      - targets: ['10.14.18.42:8686']
