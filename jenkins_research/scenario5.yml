@@ -1,0 +1,9 @@
+---
+version: "2"
+
+services:
+  jenkins:
+    image: jenkins5
+    build:
+      context: ./jenkins5/
+      dockerfile: Dockerfile

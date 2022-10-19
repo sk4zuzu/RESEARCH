@@ -1,0 +1,18 @@
+---
+jobs:
+
+- script: |
+    pipelineJob('pipeline0') {
+      definition {
+        cpsScm {
+          scm {
+            git {
+              remote { url('https://github.com/sk4zuzu/RESEARCH.git') }
+              branches('jenkins')
+              scriptPath('jenkins_research/jenkins5/pipeline0.Jenkinsfile')
+              extensions { }
+            }
+          }
+        }
+      }
+    }

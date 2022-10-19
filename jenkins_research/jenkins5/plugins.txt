@@ -1,0 +1,13 @@
+authorize-project:latest
+configuration-as-code:latest
+git:latest
+job-dsl:latest
+leastload:latest
+matrix-auth:latest
+nodelabelparameter:latest
+parameterized-trigger:latest
+pipeline-utility-steps:latest
+ssh-slaves:latest
+strict-crumb-issuer:latest
+throttle-concurrents:latest
+workflow-aggregator:latest
