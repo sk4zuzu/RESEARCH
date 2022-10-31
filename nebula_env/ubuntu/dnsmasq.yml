@@ -105,7 +105,7 @@
 
     - shell: |
         set -o errexit
-        onehook show "refresh_dns_done" || onehook create /dev/fd/0 <<'EOF'
+        cat >/tmp/refresh_dns_done <<'EOF'
         NAME            = "refresh_dns_done"
         TYPE            = "state"
         RESOURCE        = "VM"
@@ -116,10 +116,11 @@
         ARGUMENTS_STDIN = "YES"
         COMMAND         = "/$(which base64) -d | xmllint --xpath '/VM/ID/text()' - | /var/lib/one/remotes/hooks/dns/dns_remove.rb"
         EOF
+        onehook show "refresh_dns_done" || onehook create /tmp/refresh_dns_done
 
     - shell: |
         set -o errexit
-        onehook show "refresh_dns_create" || onehook create /dev/fd/0 <<'EOF'
+        cat >/tmp/refresh_dns_create <<'EOF'
         NAME            = "refresh_dns_create"
         TYPE            = "api"
         CALL            = "one.template.instantiate"
@@ -129,6 +130,7 @@
         ARGUMENTS_STDIN = "YES"
         COMMAND         = "/$(which onevm) list -j | /var/lib/one/remotes/hooks/dns/dns_add.rb"
         EOF
+        onehook show "refresh_dns_create" || onehook create /tmp/refresh_dns_create
 
 - hosts: opennebula[0]
   module_defaults: *module_defaults
@@ -136,12 +138,14 @@
   tasks:
     - shell: |
         set -o errexit
-        onevnet update -a "service" /dev/fd/0 <<'EOF'
+        cat >/tmp/vnet_service <<'EOF'
         DNS = "{{ one_host | default(ansible_host) }}"
         EOF
+        onevnet update -a "service" /tmp/vnet_service
 
     - shell: |
         set -o errexit
-        onevnet update -a "private" /dev/fd/0 <<'EOF'
+        cat >/tmp/vnet_private <<'EOF'
         DNS = "{{ one_host | default(ansible_host) }}"
         EOF
+        onevnet update -a "private" /tmp/vnet_private

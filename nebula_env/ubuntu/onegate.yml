@@ -1,0 +1,20 @@
+---
+- hosts: opennebula[0]:kvm
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  environment: &environment
+    DEBIAN_FRONTEND: noninteractive
+  gather_facts: true
+  tasks: []
+
+- hosts: kvm
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        apt-get install -y opennebula-rubygems
+
+    - shell: |
+        set -o errexit
+        systemctl enable --now opennebula-gate-proxy{.service,-watch.path}

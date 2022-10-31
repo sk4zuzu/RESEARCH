@@ -1,0 +1,37 @@
+---
+- hosts: opennebula[0]:kvm
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  environment: &environment
+    DEBIAN_FRONTEND: noninteractive
+  gather_facts: true
+  tasks: []
+
+- hosts: opennebula[0]
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        apt-get install -y opennebula-rubygems
+        apt-get install -y opennebula-prometheus
+
+    - shell: |
+        set -o errexit
+        systemctl enable --now opennebula-prometheus.service
+        systemctl enable --now opennebula-grafana.service
+        systemctl enable --now opennebula-exporter.service
+
+- hosts: kvm
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        apt-get install -y opennebula-rubygems
+        apt-get install -y opennebula-prometheus-kvm
+
+    - shell: |
+        set -o errexit
+        systemctl enable --now opennebula-node-exporter.service
+        systemctl enable --now opennebula-libvirt-exporter.service

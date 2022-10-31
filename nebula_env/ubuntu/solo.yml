@@ -13,7 +13,7 @@
   tasks:
     - shell: |
         set -o errexit -o pipefail
-        curl -fsSL https://downloads.opennebula.io/repo/repo.key | apt-key add -
+        curl -fsSL https://downloads.opennebula.io/repo/repo2.key | apt-key add -
 
     - copy:
         dest: /etc/apt/sources.list.d/opennebula.list
@@ -149,14 +149,19 @@
   tasks:
     - shell: |
         set -o errexit
-        onedatastore update 1 /dev/fd/0 <<'EOF'
+        cat >/tmp/ds1 <<'EOF'
         DS_MAD    = "fs"
         TM_MAD    = "qcow2"
         SAFE_DIRS = "/var/lib/one/datastores/img/"
         EOF
-        onedatastore update 0 /dev/fd/0 <<'EOF'
+        onedatastore update 1 /tmp/ds1
+
+    - shell: |
+        set -o errexit
+        cat >/tmp/ds0 <<'EOF'
         TM_MAD = "qcow2"
         EOF
+        onedatastore update 0 /tmp/ds0
 
     - shell: |
         set -o errexit
@@ -218,7 +223,7 @@
   tasks:
     - shell: |
         set -o errexit
-        onevnet show "service" || onevnet create /dev/fd/0 <<'EOF'
+        cat >/tmp/vnet_service <<'EOF'
         NAME   = "service"
         VN_MAD = "bridge"
         BRIDGE = "br0"
@@ -231,10 +236,11 @@
         GATEWAY         = "{{ public_cidr | nthhost(1) }}"
         DNS             = "1.1.1.1"
         EOF
+        onevnet show "service" || onevnet create /tmp/vnet_service
 
     - shell: |
         set -o errexit
-        onevnet show "private" || onevnet create /dev/fd/0 <<'EOF'
+        cat >/tmp/vnet_private <<'EOF'
         NAME   = "private"
         VN_MAD = "bridge"
         BRIDGE = "br1"
@@ -247,21 +253,24 @@
         NETWORK_MASK    = "{{ private_cidr | ipaddr('netmask') }}"
         DNS             = "1.1.1.1"
         EOF
+        onevnet show "private" || onevnet create /tmp/vnet_private
 
     - shell: |
         set -o errexit
-        oneuser update oneadmin -a /dev/fd/0 <<'EOF'
+        cat >/tmp/user_oneadmin <<'EOF'
         SSH_PUBLIC_KEY = "{{ ssh_public_key }}"
         EOF
+        oneuser update oneadmin -a /tmp/user_oneadmin
 
     - shell: |
         set -o errexit
         onemarketapp export 'Alpine Linux 3.14' alpine314 --datastore default || true
-        onetemplate update -a alpine314 /dev/fd/0 <<'EOF'
+        cat >/tmp/alpine314 <<'EOF'
         NIC = [
           NETWORK_ID      = "0",
           SECURITY_GROUPS = "0" ]
         EOF
+        onetemplate update -a alpine314 /tmp/alpine314
 
 - hosts: opennebula[0]
   module_defaults: *module_defaults

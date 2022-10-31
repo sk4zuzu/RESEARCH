@@ -97,9 +97,10 @@
     - delegate_to: "{{ groups.opennebula[0] }}"
       shell: |
         set -o errexit
-        onemarket update -a 0 /dev/fd/0 <<'EOF'
+        cat >/tmp/onemarket <<'EOF'
         ENDPOINT = "http://{{ inventory_hostname_short }}:9292/"
         EOF
+        onemarket update -a 0 /tmp/onemarket
 
     - shell: |
         set -o errexit

@@ -71,7 +71,7 @@
 
     - shell: |
         set -o errexit
-        onehook show "cleanup_vnet_vmgroup" || onehook create /dev/fd/0 <<'EOF'
+        cat >/tmp/cleanup_vnet_vmgroup <<'EOF'
         NAME            = "cleanup_vnet_vmgroup"
         TYPE            = "state"
         RESOURCE        = "VM"
@@ -82,6 +82,7 @@
         ARGUMENTS_STDIN = "YES"
         COMMAND         = "/$(which base64) -d | xmllint --xpath '/VM/ID/text()' - | /var/lib/one/remotes/hooks/cleanup/vnet_vmgroup.rb"
         EOF
+        onehook show "cleanup_vnet_vmgroup" || onehook create /tmp/cleanup_vnet_vmgroup
 
     - vars:
         _appliances:
@@ -120,7 +121,7 @@
       block:
         - shell: |
             set -o errexit
-            oneimage show "{{ item }}" || oneimage create -d 1 /dev/fd/0 <<'EOF'
+            cat >/tmp/{{ item }} <<'EOF'
             NAME       = "{{ item }}"
             TYPE       = "OS"
             DEV_PREFIX = "sd"
@@ -128,6 +129,7 @@
             PATH       = "/var/lib/one/datastores/img/{{ item }}.qcow2"
             SIZE       = "40960"
             EOF
+            oneimage show "{{ item }}" || oneimage create -d 1 /tmp/{{ item }}
           loop: "{{ _appliances }}"
 
         - slurp:
@@ -140,7 +142,7 @@
               {{ (slurp_oneadmin_id_rsa_pub.content | b64decode).splitlines()[0] | trim }}
           shell: |
             set -o errexit
-            onetemplate show "{{ item }}" || onetemplate create /dev/fd/0 <<'EOF'
+            cat >/tmp/{{ item }} <<'EOF'
             NAME   = "{{ item }}"
             CPU    = "0.5"
             VCPU   = "1"
@@ -167,4 +169,5 @@
               MODEL = "host-passthrough"
             ]
             EOF
+            onetemplate show "{{ item }}" || onetemplate create /tmp/{{ item }}
           loop: "{{ _appliances }}"
