@@ -1,0 +1,35 @@
+---
+- hosts: all
+  gather_facts: true
+  tasks: []
+
+- hosts: frontend
+  tasks:
+    - ansible.builtin.pip:
+        name: pyone
+
+- hosts: frontend
+  become_user: oneadmin
+  environment:
+    ONE_URL: "http://{{ ansible_host }}:2633/RPC2"
+  tasks:
+    - block: &delete_all
+        - one_vm:
+            attributes: { name: alpine315-## }
+          register: vms
+        - one_vm:
+            instance_ids: "{{ vms.instances_ids }}"
+            state: absent
+          when: vms.instances_ids is truthy
+
+    - one_vm:
+        template_name: alpine315
+        count: 2
+        context:
+          START_SCRIPT: ip r r 169.254.16.9/32 dev eth0
+      register: vms
+
+    - one_vm:
+        instance_ids: "{{ vms.instances_ids }}"
+        context:
+          START_SCRIPT: ip r r 169.254.16.86/32 dev eth0
