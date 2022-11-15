@@ -844,6 +844,34 @@ def set_vm_ownership(module, client, vms, owner_id, group_id):
     return changed
 
 
+def update_vm_context(client, vms, context_dict):
+    changed = False
+
+    if not context_dict:
+        return changed
+
+    import copy
+
+    for vm in vms:
+        template = client.vm.info(vm.ID).TEMPLATE
+
+        context = copy.deepcopy(template.get('CONTEXT', {}))
+        context.update(context_dict)
+
+        changed = (context != context_dict) or changed
+
+        context_items = (
+            '{key}="{val}"'.format(key=key, val=val)
+            for key, val in context.items()
+        )
+
+        context_str = 'CONTEXT = [' + ','.join(context_items) + ']\n'
+
+        client.vm.updateconf(vm.ID, context_str, 1)  # 1: Merge new template with the existing one.
+
+    return changed
+
+
 def get_size_in_MB(module, size_str):
 
     SYMBOLS = ['B', 'KB', 'MB', 'GB', 'TB']
@@ -933,13 +961,38 @@ def create_nics_str(network_attrs_list):
     return nics_str
 
 
-def create_vm(module, client, template_id, attributes_dict, labels_list, disk_size, network_attrs_list, vm_start_on_hold, vm_persistent):
+def create_context_str(client, template_id, context_dict):
+    if not context_dict:
+        return ''
+
+    template = client.template.info(template_id).TEMPLATE
+
+    import copy
+
+    context = copy.deepcopy(template.get('CONTEXT', {}))
+    context.update(context_dict)
+
+    context_items = (
+        '{key}="{val}"'.format(key=key, val=val)
+        for key, val in context.items()
+    )
+
+    context_str = 'CONTEXT = [' + ','.join(context_items) + ']\n'
+
+    return context_str
+
+
+def create_vm(module, client, template_id, attributes_dict, labels_list, disk_size, network_attrs_list, vm_start_on_hold, vm_persistent, context_dict):
 
     if attributes_dict:
         vm_name = attributes_dict.get('NAME', '')
 
+    attributes_str = create_attributes_str(attributes_dict, labels_list)
+    nics_str = create_nics_str(network_attrs_list)
     disk_str = create_disk_str(module, client, template_id, disk_size)
-    vm_extra_template_str = create_attributes_str(attributes_dict, labels_list) + create_nics_str(network_attrs_list) + disk_str
+    context_str = create_context_str(client, template_id, context_dict)
+    vm_extra_template_str = attributes_str + nics_str + disk_str + context_str
+
     try:
         vm_id = client.template.instantiate(template_id, vm_name, vm_start_on_hold, vm_extra_template_str, vm_persistent)
     except pyone.OneException as e:
@@ -1029,7 +1082,7 @@ def get_all_vms_by_attributes(client, attributes_dict, labels_list):
 
 
 def create_count_of_vms(
-        module, client, template_id, count, attributes_dict, labels_list, disk_size, network_attrs_list, wait, wait_timeout, vm_start_on_hold, vm_persistent):
+        module, client, template_id, count, attributes_dict, labels_list, disk_size, network_attrs_list, wait, wait_timeout, vm_start_on_hold, vm_persistent, context_dict):
     new_vms_list = []
 
     vm_name = ''
@@ -1058,7 +1111,7 @@ def create_count_of_vms(
             new_vm_name += next_index
         # Update NAME value in the attributes in case there is index
         attributes_dict['NAME'] = new_vm_name
-        new_vm_dict = create_vm(module, client, template_id, attributes_dict, labels_list, disk_size, network_attrs_list, vm_start_on_hold, vm_persistent)
+        new_vm_dict = create_vm(module, client, template_id, attributes_dict, labels_list, disk_size, network_attrs_list, vm_start_on_hold, vm_persistent, context_dict)
         new_vm_id = new_vm_dict.get('vm_id')
         new_vm = get_vm_by_id(client, new_vm_id)
         new_vms_list.append(new_vm)
@@ -1077,7 +1130,7 @@ def create_count_of_vms(
 
 
 def create_exact_count_of_vms(module, client, template_id, exact_count, attributes_dict, count_attributes_dict,
-                              labels_list, count_labels_list, disk_size, network_attrs_list, hard, wait, wait_timeout, vm_start_on_hold, vm_persistent):
+                              labels_list, count_labels_list, disk_size, network_attrs_list, hard, wait, wait_timeout, vm_start_on_hold, vm_persistent, context_dict):
 
     vm_list = get_all_vms_by_attributes(client, count_attributes_dict, count_labels_list)
 
@@ -1095,7 +1148,7 @@ def create_exact_count_of_vms(module, client, template_id, exact_count, attribut
         # Add more VMs
         changed, instances_list, tagged_instances = create_count_of_vms(module, client, template_id, vm_count_diff, attributes_dict,
                                                                         labels_list, disk_size, network_attrs_list, wait, wait_timeout,
-                                                                        vm_start_on_hold, vm_persistent)
+                                                                        vm_start_on_hold, vm_persistent, context_dict)
 
         tagged_instances_list += instances_list
     elif vm_count_diff < 0:
@@ -1531,13 +1584,13 @@ def main():
         # Deploy an exact count of VMs
         changed, instances_list, tagged_instances_list = create_exact_count_of_vms(module, one_client, template_id, exact_count, attributes,
                                                                                    count_attributes, labels, count_labels, disk_size,
-                                                                                   networks, hard, wait, wait_timeout, put_vm_on_hold, persistent)
+                                                                                   networks, hard, wait, wait_timeout, put_vm_on_hold, persistent, context)
         vms = tagged_instances_list
     elif template_id is not None and state == 'present':
         # Deploy count VMs
         changed, instances_list, tagged_instances_list = create_count_of_vms(module, one_client, template_id, count,
                                                                              attributes, labels, disk_size, networks, wait, wait_timeout,
-                                                                             put_vm_on_hold, persistent)
+                                                                             put_vm_on_hold, persistent, context)
         # instances_list - new instances
         # tagged_instances_list - all instances with specified `count_attributes` and `count_labels`
         vms = instances_list
@@ -1588,6 +1641,9 @@ def main():
 
     if owner_id is not None or group_id is not None:
         changed = set_vm_ownership(module, one_client, vms, owner_id, group_id) or changed
+
+    if template_id is None and instance_ids is not None and context is not None:
+        changed = update_vm_context(one_client, vms, context) or changed
 
     if wait and not module.check_mode and state != 'present':
         wait_for = {
