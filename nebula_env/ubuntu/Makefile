@@ -1,8 +1,8 @@
 SHELL := $(shell which bash)
 SELF  := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 
-ANSIBLE_STRATEGY_PLUGINS := $(HOME)/_git/mitogen/ansible_mitogen/plugins/strategy
-ANSIBLE_STRATEGY         := mitogen_linear
+#ANSIBLE_STRATEGY_PLUGINS := $(HOME)/_git/mitogen/ansible_mitogen/plugins/strategy
+#ANSIBLE_STRATEGY         := mitogen_linear
 
 export
 
@@ -14,6 +14,9 @@ solo: $(SELF)/hosts.ini $(SELF)/solo.yml
 	cd $(SELF)/ && ansible-playbook -vv -i $^
 
 nspawn: $(SELF)/nspawn.ini $(SELF)/solo.yml $(SELF)/apache2.yml $(SELF)/market.yml $(SELF)/dnsmasq.yml $(SELF)/microenvs.yml
+	cd $(SELF)/ && ansible-playbook -vv -i $^
+
+restic: $(SELF)/nspawn.ini $(SELF)/restic.yml
 	cd $(SELF)/ && ansible-playbook -vv -i $^
 
 equinix: $(SELF)/equinix.ini $(SELF)/solo.yml $(SELF)/apache2.yml $(SELF)/market.yml

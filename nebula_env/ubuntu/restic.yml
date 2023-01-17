@@ -1,0 +1,129 @@
+---
+- hosts: opennebula:services
+  module_defaults: &module_defaults
+    shell: { executable: /bin/bash }
+  environment: &environment
+    DEBIAN_FRONTEND: noninteractive
+  gather_facts: true
+  tasks:
+    - shell: |
+        set -o errexit
+        apt-get install -y rsync
+
+- hosts: opennebula[0]
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        [[ -x /var/lib/one/remotes/datastore/restic/restic ]]
+        [[ -L /usr/local/bin/restic ]] || ln -s {/var/lib/one/remotes/datastore/restic,/usr/local/bin}/restic
+
+    - shell: |
+        set -o errexit
+        [[ -f /tmp/id_rsa.pub ]] || install -o {{ ansible_user }} {/var/lib/one/.ssh,/tmp}/id_rsa.pub
+
+    - become: false
+      shell: |
+        set -o errexit
+        rsync -avz /tmp/id_rsa.pub {{ ansible_user ~ '@' ~ groups.services[0] }}:/tmp/id_rsa.pub
+
+    - shell: |
+        set -o errexit
+        install -o oneadmin -g oneadmin -m u=rwx,g=rx,o=x -d /var/lib/one/
+
+    - shell: |
+        set -o errexit
+        install -o oneadmin -g oneadmin -m u=rwx,go= -d /var/lib/one/.ssh/
+        [[ -f /var/lib/one/.ssh/config ]] || install -o oneadmin -g oneadmin -m u=rw,go= /dev/null /var/lib/one/.ssh/config
+        gawk -i inplace -f- /var/lib/one/.ssh/config <<EOF
+        BEGIN {
+          update1 = "StrictHostKeyChecking no";
+          update2 = "UserKnownHostsFile /dev/null";
+        }
+        /^#*StrictHostKeyChecking\s*/ { \$0 = update1; found1 = 1 }
+        /^#*UserKnownHostsFile\s*/    { \$0 = update2; found2 = 1 }
+        { print }
+        ENDFILE {
+          if (!found1) print update1;
+          if (!found2) print update2;
+        }
+        EOF
+
+- hosts: services[0]
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - shell: |
+        set -o errexit
+        getent group oneadmin || groupadd -g 9869 oneadmin
+        getent passwd oneadmin || useradd -md /var/lib/one/ -u 9869 -g oneadmin -s /bin/bash oneadmin
+        install -o oneadmin -g oneadmin -m u=rwx,g=rx,o=x -d /var/lib/one/
+        install -o oneadmin -g oneadmin -m u=rwx,go=      -d /var/lib/one/.ssh/
+        [[ -f /var/lib/one/.ssh/authorized_keys ]] || install -o oneadmin -g oneadmin -m u=rw,go= /dev/null /var/lib/one/.ssh/authorized_keys
+
+    - shell: |
+        set -o errexit
+        grep -f /tmp/id_rsa.pub /var/lib/one/.ssh/authorized_keys || cat >>/var/lib/one/.ssh/authorized_keys </tmp/id_rsa.pub
+
+- hosts: opennebula[0]
+  module_defaults: *module_defaults
+  environment:
+    <<: *environment
+    RESTIC_SFTP_SERVER: "{{ hostvars[groups.services[0]].ansible_default_ipv4.address }}"
+  tasks:
+    - shell: |
+        set -o errexit
+        cat >/tmp/ds_restic <<EOF
+        NAME               = "restic"
+        TYPE               = "BACKUP_DS"
+        DS_MAD             = "restic"
+        TM_MAD             = "-"
+        RESTIC_PASSWORD    = "asd"
+        RESTIC_SFTP_SERVER = "$RESTIC_SFTP_SERVER"
+        EOF
+        onedatastore show restic || onedatastore create /tmp/ds_restic
+
+    - become_user: oneadmin
+      shell: |
+        set -o errexit
+        [[ -f ~oneadmin/.profile ]] || install -o oneadmin -g oneadmin -m u=rw,go= /dev/null ~oneadmin/.profile
+        gawk -i inplace -f- ~oneadmin/.profile <<EOF
+        BEGIN {
+          update1 = "export RESTIC_REPOSITORY='sftp:oneadmin@$RESTIC_SFTP_SERVER:/var/lib/one/datastores/100'";
+          update2 = "export RESTIC_PASSWORD='asd'";
+        }
+        /^#*export RESTIC_REPOSITORY=/ { \$0 = update1; found1 = 1 }
+        /^#*export RESTIC_PASSWORD=/   { \$0 = update2; found2 = 1 }
+        { print }
+        ENDFILE {
+          if (!found1) print update1;
+          if (!found2) print update2;
+        }
+        EOF
+        source ~oneadmin/.profile
+        restic stats || restic init
+
+- hosts: services[0]
+  module_defaults: *module_defaults
+  environment: *environment
+  tasks:
+    - become_user: oneadmin
+      shell: |
+        set -o errexit
+        [[ -f ~oneadmin/.profile ]] || install -o oneadmin -g oneadmin -m u=rw,go= /dev/null ~oneadmin/.profile
+        gawk -i inplace -f- ~oneadmin/.profile <<EOF
+        BEGIN {
+          update1 = "export RESTIC_REPOSITORY='/var/lib/one/datastores/100'";
+          update2 = "export RESTIC_PASSWORD='asd'";
+        }
+        /^#*export RESTIC_REPOSITORY=/ { \$0 = update1; found1 = 1 }
+        /^#*export RESTIC_PASSWORD=/   { \$0 = update2; found2 = 1 }
+        { print }
+        ENDFILE {
+          if (!found1) print update1;
+          if (!found2) print update2;
+        }
+        EOF
+        source ~oneadmin/.profile
+        restic stats || restic init
