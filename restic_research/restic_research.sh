@@ -3,6 +3,7 @@
 : "${VT_NAME:=alpine317}"
 : "${VM_NAME:=asd}"
 : "${DS_NAME:=restic}"
+: "${SRC_DEV:=/dev/urandom}"
 
 set -o errexit -o nounset -o pipefail
 
@@ -56,7 +57,7 @@ wait_for_vm
 
 (export EDITOR="gawk -i inplace '$(cat)'" && onevm updateconf -a "$VM_NAME") <<EOF
 BEGIN {
-  update1 = "START_SCRIPT=\\"(dd if=/dev/urandom bs=1024 count=8192 >> /asd; echo $RETRY > /RETRY) && sync\\""
+  update1 = "START_SCRIPT=\\"(dd if=/dev/$SRC_DEV bs=1024 count=8192 >> /asd; echo $RETRY > /RETRY) && sync\\""
 }
 /^CONTEXT\s*=/ { \$0 = "CONTEXT=[" update1 "," }
 { print }
