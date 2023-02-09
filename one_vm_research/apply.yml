@@ -14,22 +14,46 @@
     ONE_URL: "http://{{ ansible_host }}:2633/RPC2"
   tasks:
     - block: &delete_all
-        - one_vm:
-            attributes: { name: alpine315-## }
+        - community.general.one_vm:
+            attributes: { name: asd-## }
           register: vms
-        - one_vm:
+        - community.general.one_vm:
             instance_ids: "{{ vms.instances_ids }}"
             state: absent
           when: vms.instances_ids is truthy
 
-    - one_vm:
+    - name: DEPLOY
+      community.general.one_vm:
         template_name: alpine315
-        count: 2
-        context:
-          START_SCRIPT: ip r r 169.254.16.9/32 dev eth0
-      register: vms
+        attributes:
+          ASD: asd
 
-    - one_vm:
-        instance_ids: "{{ vms.instances_ids }}"
-        context:
-          START_SCRIPT: ip r r 169.254.16.86/32 dev eth0
+    - name: DEPLOY
+      community.general.one_vm:
+        template_name: alpine315
+        labels:
+          - ASD
+
+    - name: UPDATE
+      community.general.one_vm:
+        attributes:
+          ASD: asd
+        updateconf:
+          CONTEXT:
+            START_SCRIPT: ip r r 169.254.16.86/32 dev eth0
+      register: result
+      until: result is success
+      retries: 5
+      delay: 5
+
+    - name: UPDATE
+      community.general.one_vm:
+        labels:
+          - ASD
+        updateconf:
+          CONTEXT:
+            START_SCRIPT: ip r r 186.254.16.69/32 dev eth0
+      register: result
+      until: result is success
+      retries: 5
+      delay: 5

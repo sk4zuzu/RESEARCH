@@ -14,10 +14,10 @@
     ONE_URL: "http://{{ ansible_host }}:2633/RPC2"
   tasks:
     - block: &delete_all
-        - one_vm:
+        - community.general.one_vm:
             attributes: { name: alpine315-## }
           register: vms
-        - one_vm:
+        - community.general.one_vm:
             instance_ids: "{{ vms.instances_ids }}"
             state: absent
           when: vms.instances_ids is truthy
