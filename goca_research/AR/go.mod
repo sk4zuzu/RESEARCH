@@ -1,4 +1,4 @@
-module sk4zuzu/RESEARCH/goca_research
+module sk4zuzu/RESEARCH/goca_research/AR
 
 go 1.19
 
