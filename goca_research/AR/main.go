@@ -92,11 +92,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	IP, _ := vn.ARs[0].Get(keys.IP)
-
+	IP := vn.ARs[0].IP
 	fmt.Println(IP)
 
-	//IP := vn.ARs[0].IP
-	//ASD, _ := vn.ARs[0].Get("ASD")
-	//fmt.Println(ASD)
+	ASD, _ := vn.ARs[0].Custom.GetStr("ASD")
+	fmt.Println(ASD)
 }

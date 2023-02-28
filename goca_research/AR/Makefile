@@ -12,3 +12,7 @@ run: $(SELF)/main.go
 
 replace:
 	@go mod edit -replace github.com/OpenNebula/one/src/oca/go/src/goca=$(HOME)/_git/one/src/oca/go/src/goca
+
+test:
+	@cd $(HOME)/_git/one/src/oca/go/src/goca/ && go get gopkg.in/check.v1
+	@cd $(HOME)/_git/one/src/oca/go/src/goca/dynamic/ && go test -v
