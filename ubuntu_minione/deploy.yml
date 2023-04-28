@@ -47,12 +47,28 @@
 
     - shell: |
         set -o errexit
-        minione --force --yes {{ ( "--enterprise" ~ one_token ) if one_token is defined else "" }} \
-        --version {{ one_version }} \
-        --password {{ one_password }} \
-        --vm-password {{ one_password }} \
-        --marketapp-name 'Service Kubernetes 1.24' \
+        minione --force --yes \
+        --version '{{ one_version }}' \
+        --password '{{ one_password }}' \
+        --vm-password '{{ one_password }}' \
+        {{ ( "--sunstone-port '" ~ sunstone_port ~ "'") if sunstone_port is defined else "" }} \
+        {{ ( "--enterprise '" ~ one_token ~ "'") if one_token is defined else "" }} \
+        {{ ( "--marketapp-name '" ~ marketapp ~ "'") if marketapp is defined else "" }} \
         {{ minione_args | default('') }}
+      args: { creates: /var/lib/one/.one/one_auth }
+
+    - shell: |
+        set -o errexit
+        gawk -i inplace -f- /etc/hosts <<'EOF'
+        BEGIN {
+          update1 = "{{ hostvars[inventory_hostname].ansible_host }} k8s.demo.one";
+        }
+        /\s+k8s[.]demo[.]one$/ { $0 = update1; found1 = true }
+        { print }
+        ENDFILE {
+          if (!found1) print update1;
+        }
+        EOF
 
     - shell: |
         set -o errexit
@@ -64,7 +80,11 @@
 
     - shell: |
         set -o errexit
-        onevnet show "private" || onevnet create /dev/fd/0 <<'EOF'
+        onevnet show "vnet" && onevnet rename "vnet" "public"
+
+    - shell: |
+        set -o errexit
+        cat >/tmp/private <<'EOF'
         NAME   = "private"
         VN_MAD = "bridge"
         BRIDGE = "privatebr"
@@ -76,6 +96,7 @@
         NETWORK_MASK    = "255.255.255.0"
         DNS             = "1.1.1.1"
         EOF
+        onevnet show "private" || onevnet create /tmp/private
 
     - shell: |
         set -o errexit
@@ -113,7 +134,7 @@
         apiVersion: v1
         kind: PersistentVolumeClaim
         metadata:
-          name: test
+         name: test
         spec:
           accessModes:
             - ReadWriteOnce

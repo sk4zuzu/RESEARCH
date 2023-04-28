@@ -1,6 +1,5 @@
 [all:vars]
-ansible_user=ubuntu
-ansible_become=true
+ansible_user=root
 minione_version=6.6.0.1
 #minione_args=--frontend
 one_version=6.6

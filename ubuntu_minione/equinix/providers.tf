@@ -1,12 +1,12 @@
 terraform {
   required_providers {
-    metal = {
-      source = "equinix/metal"
-      version = "3.2.2"
+    equinix = {
+      source = "equinix/equinix"
+      version = "1.13.0"
     }
   }
 }
 
-provider "metal" {
+provider "equinix" {
   auth_token = var.auth_token
 }

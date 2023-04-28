@@ -4,9 +4,6 @@ SELF  := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 I         ?= $(SELF)/hosts.ini
 INVENTORY ?= $(I)
 
-ANSIBLE_STRATEGY_PLUGINS := $(HOME)/_git/mitogen/ansible_mitogen/plugins/strategy
-ANSIBLE_STRATEGY         := mitogen_linear
-
 export
 
 .PHONY: all deploy market

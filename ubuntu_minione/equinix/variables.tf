@@ -22,5 +22,5 @@ variable "facilities" {
 
 variable "operating_system" {
   type    = string
-  default = "ubuntu_20_04"
+  default = "ubuntu_22_04"
 }
