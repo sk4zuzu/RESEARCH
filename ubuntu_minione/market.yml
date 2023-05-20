@@ -22,12 +22,12 @@
     - shell: |
         set -o errexit
         install -d /opt/marketplace/ && cd $_
-        git clone https://github.com/sk4zuzu/marketplace.git . || git pull origin
+        git clone {{ marketplace_git }} -b {{ marketplace_branch | d('master') }} . || git pull origin
 
     - shell: |
         set -o errexit
         install -d /opt/appmarket-simple/ && cd $_
-        git clone https://github.com/sk4zuzu/appmarket-simple.git . || git pull origin
+        git clone {{ appmarket_simple_git }} -b {{ appmarket_simple_branch | d('master') }} . || git pull origin
 
     - shell: |
         set -o errexit
@@ -38,8 +38,9 @@
     - shell: |
         set -o errexit
         cd /opt/appmarket-simple/src/
-        bundle update --bundler
-        bundle install
+        bundle update --bundler ||:
+        bundle update
+        bundle add webrick ||:
 
     - shell: |
         set -o errexit
@@ -72,15 +73,11 @@
         set -o errexit
         cat >/etc/systemd/system/market-watcher.path <<'EOF'
         [Path]
-        PathModified=/opt/marketplace/appliances/OneKE_CE/
-        PathModified=/opt/marketplace/appliances/OneKE_EE/
+        PathModified=/opt/marketplace/appliances/OneKE_CE_1.24/
+        PathModified=/opt/marketplace/appliances/OneKE_EE_1.24/
+        PathModified=/opt/marketplace/appliances/OneKE_CE_1.27/
+        PathModified=/opt/marketplace/appliances/OneKE_EE_1.27/
         PathModified=/opt/marketplace/appliances/all/
-        PathModified=/opt/marketplace/appliances/apps/
-        PathModified=/opt/marketplace/appliances/ec2/
-        PathModified=/opt/marketplace/appliances/edge/
-        PathModified=/opt/marketplace/appliances/firecracker/
-        PathModified=/opt/marketplace/appliances/flow/
-        PathModified=/opt/marketplace/appliances/iso/
         PathModified=/opt/marketplace/appliances/kernel/
         PathModified=/opt/marketplace/appliances/kvm/
         PathModified=/opt/marketplace/appliances/service/
