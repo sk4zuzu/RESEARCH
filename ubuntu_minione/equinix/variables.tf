@@ -15,12 +15,12 @@ variable "plan" {
   default = "c3.small.x86"
 }
 
-variable "facilities" {
-  type    = list(string)
-  default = ["fr2"]
+variable "metro" {
+  type    = string
+  default = "FR"
 }
 
 variable "operating_system" {
   type    = string
-  default = "ubuntu_22_04"
+  default = "ubuntu_20_04"
 }

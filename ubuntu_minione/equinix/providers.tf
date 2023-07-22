@@ -2,7 +2,7 @@ terraform {
   required_providers {
     equinix = {
       source = "equinix/equinix"
-      version = "1.13.0"
+      version = "1.14.3"
     }
   }
 }

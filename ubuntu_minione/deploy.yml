@@ -3,8 +3,10 @@
   strategy: linear
   gather_facts: false
   tasks:
-    - script: "{{ playbook_dir }}/script/python3.sh"
-      args: { executable: /bin/bash, creates: /usr/bin/python3 }
+    - script:
+        cmd: "{{ playbook_dir }}/script/python3.sh"
+        executable: /bin/bash
+        creates: /usr/bin/python3
 
 - hosts: ubuntu
   module_defaults: &module_defaults
@@ -22,155 +24,168 @@
         - allowed_ipv4 is defined
         - allowed_ipv4 is string
         - allowed_ipv4 | length > 0
-      shell: |
-        set -o errexit
-        iptables -A INPUT -p tcp -i bond0 -m state --state RELATED,ESTABLISHED -j ACCEPT
-        iptables -A INPUT -p tcp -i bond0 ! -s {{ allowed_ipv4 }} -d 0/0 -j DROP
+      shell:
+        cmd: |
+          set -o errexit
+          iptables -A INPUT -p tcp -i bond0 -m state --state RELATED,ESTABLISHED -j ACCEPT
+          iptables -A INPUT -p tcp -i bond0 ! -s {{ allowed_ipv4 }} -d 0/0 -j DROP
 
-    - shell: |
-        set -o errexit
-        KUBECTL_VERSION=$(curl -fsSL https://storage.googleapis.com/kubernetes-release/release/stable.txt)
-        curl -fsSLO https://storage.googleapis.com/kubernetes-release/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl
-        chmod u=rwx,go=rx /usr/local/bin/kubectl
-      args: { creates: /usr/local/bin/kubectl, chdir: /usr/local/bin/ }
+    - shell:
+        cmd: |
+          set -o errexit
+          KUBECTL_VERSION=$(curl -fsSL https://storage.googleapis.com/kubernetes-release/release/stable.txt)
+          curl -fsSLO https://storage.googleapis.com/kubernetes-release/release/$KUBECTL_VERSION/bin/linux/amd64/kubectl
+          chmod u=rwx,go=rx /usr/local/bin/kubectl
+        chdir: /usr/local/bin/
+        creates: /usr/local/bin/kubectl
 
-    - shell: |
-        set -o errexit
-        install -o 0 -g 0 -m u=rwx,go= -d /root/.kube/
-      args: { creates: /root/.kube/ }
+    - shell:
+        cmd: |
+          set -o errexit
+          install -o 0 -g 0 -m u=rwx,go= -d /root/.kube/
+        creates: /root/.kube/
 
-    - shell: |
-        set -o errexit -o pipefail
-        curl -fsSL https://github.com/OpenNebula/minione/releases/download/v{{ minione_version }}/minione \
-        | install -m+x /dev/fd/0 -D /usr/local/bin/minione
-      args: { creates: /usr/local/bin/minione }
+    - shell:
+        cmd: |
+          set -o errexit -o pipefail
+          curl -fsSL https://github.com/OpenNebula/minione/releases/download/v{{ minione_version }}/minione \
+          | install -m+x /dev/fd/0 -D /usr/local/bin/minione
+        creates: /usr/local/bin/minione
 
-    - shell: |
-        set -o errexit
-        minione --force --yes \
-        --version '{{ one_version }}' \
-        --password '{{ one_password }}' \
-        --vm-password '{{ one_password }}' \
-        {{ ( "--sunstone-port '" ~ sunstone_port ~ "'") if sunstone_port is defined else "" }} \
-        {{ ( "--enterprise '" ~ one_token ~ "'") if one_token is defined else "" }} \
-        {{ ( "--marketapp-name '" ~ marketapp ~ "'") if marketapp is defined else "" }} \
-        {{ minione_args | default('') }}
-      args: { creates: /var/lib/one/.one/one_auth }
+    - shell:
+        cmd: |
+          set -o errexit
+          minione --force --yes \
+          --version '{{ one_version }}' \
+          --password '{{ one_password }}' \
+          --vm-password '{{ one_password }}' \
+          {{ ( "--sunstone-port '" ~ sunstone_port ~ "'") if sunstone_port is defined else "" }} \
+          {{ ( "--enterprise '" ~ one_token ~ "'") if one_token is defined else "" }} \
+          {{ ( "--marketapp-name '" ~ marketapp ~ "'") if marketapp is defined else "" }} \
+          {{ minione_args | default('') }}
+        creates: /var/lib/one/.one/one_auth
 
-    - shell: |
-        set -o errexit
-        gawk -i inplace -f- /etc/hosts <<'EOF'
-        BEGIN {
-          update1 = "{{ hostvars[inventory_hostname].ansible_host }} k8s.demo.one";
-        }
-        /\s+k8s[.]demo[.]one$/ { $0 = update1; found1 = true }
-        { print }
-        ENDFILE {
-          if (!found1) print update1;
-        }
-        EOF
+    - shell:
+        cmd: |
+          set -o errexit
+          gawk -i inplace -f- /etc/hosts <<'EOF'
+          BEGIN {
+            update1 = "{{ hostvars[inventory_hostname].ansible_host }} k8s.demo.one";
+          }
+          /\s+k8s[.]demo[.]one$/ { $0 = update1; found1 = true }
+          { print }
+          ENDFILE {
+            if (!found1) print update1;
+          }
+          EOF
 
-    - shell: |
-        set -o errexit
-        install -D /dev/fd/0 /etc/dnsmasq.d/upstream <<'EOF'
-        server=1.1.1.1
-        EOF
-        systemctl restart dnsmasq.service
+    - shell:
+        cmd: |
+          set -o errexit
+          install -D /dev/fd/0 /etc/dnsmasq.d/upstream <<'EOF'
+          server=1.1.1.1
+          EOF
+          systemctl restart dnsmasq.service
       ignore_errors: true
 
-    - shell: |
-        set -o errexit
-        onevnet show "vnet" && onevnet rename "vnet" "public"
+    - when: configure_vnets | default(true) | bool
+      block:
+        - shell:
+            cmd: |
+              set -o errexit
+              onevnet show "vnet" && onevnet rename "vnet" "public"
 
-    - shell: |
-        set -o errexit
-        cat >/tmp/private <<'EOF'
-        NAME   = "private"
-        VN_MAD = "bridge"
-        BRIDGE = "privatebr"
-        AR = [
-          TYPE = "IP4",
-          IP   = "172.20.100.100",
-          SIZE = "100" ]
-        NETWORK_ADDRESS = "172.20.100.0"
-        NETWORK_MASK    = "255.255.255.0"
-        DNS             = "1.1.1.1"
-        EOF
-        onevnet show "private" || onevnet create /tmp/private
+        - shell:
+            cmd: |
+              set -o errexit
+              cat >/tmp/private <<'EOF'
+              NAME   = "private"
+              VN_MAD = "bridge"
+              BRIDGE = "privatebr"
+              AR = [
+                TYPE = "IP4",
+                IP   = "172.20.100.100",
+                SIZE = "100" ]
+              NETWORK_ADDRESS = "172.20.100.0"
+              NETWORK_MASK    = "255.255.255.0"
+              DNS             = "1.1.1.1"
+              EOF
+              onevnet show "private" || onevnet create /tmp/private
 
-    - shell: |
-        set -o errexit
-        cat >/root/nginx-with-pvc-and-ingress.yml <<'EOF'
-        ---
-        kind: Deployment
-        apiVersion: apps/v1
-        metadata:
-          name: nginx
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              app: nginx
-          template:
-            metadata:
-              labels:
+    - shell:
+        cmd: |
+          set -o errexit
+          cat >/root/nginx-with-pvc-and-ingress.yml <<'EOF'
+          ---
+          kind: Deployment
+          apiVersion: apps/v1
+          metadata:
+            name: nginx
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
                 app: nginx
-            spec:
-              containers:
-              - name: http
-                image: nginx:alpine
-                imagePullPolicy: IfNotPresent
-                ports:
+            template:
+              metadata:
+                labels:
+                  app: nginx
+              spec:
+                containers:
                 - name: http
-                  containerPort: 80
-                volumeMounts:
-                - mountPath: /test/
-                  name: test
-              volumes:
-              - name: test
-                persistentVolumeClaim:
-                  claimName: test
-        ---
-        apiVersion: v1
-        kind: PersistentVolumeClaim
-        metadata:
-         name: test
-        spec:
-          accessModes:
-            - ReadWriteOnce
-          volumeMode: Filesystem
-          resources:
-            requests:
-              storage: 4Gi
-          storageClassName: longhorn-retain
-        ---
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: nginx
-        spec:
-          selector:
-            app: nginx
-          type: ClusterIP
-          ports:
-            - name: http
-              protocol: TCP
-              port: 80
-              targetPort: 80
-        ---
-        apiVersion: traefik.containo.us/v1alpha1
-        kind: IngressRoute
-        metadata:
-          name: nginx
-        spec:
-          entryPoints: [web]
-          routes:
-            - kind: Rule
-              match: Path(`/`)
-              services:
-                - kind: Service
-                  name: nginx
-                  port: 80
-                  scheme: http
-        EOF
-      args: { creates: /root/nginx-with-pvc-and-ingress.yml }
+                  image: nginx:alpine
+                  imagePullPolicy: IfNotPresent
+                  ports:
+                  - name: http
+                    containerPort: 80
+                  volumeMounts:
+                  - mountPath: /test/
+                    name: test
+                volumes:
+                - name: test
+                  persistentVolumeClaim:
+                    claimName: test
+          ---
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+           name: test
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            volumeMode: Filesystem
+            resources:
+              requests:
+                storage: 4Gi
+            storageClassName: longhorn-retain
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: nginx
+          spec:
+            selector:
+              app: nginx
+            type: ClusterIP
+            ports:
+              - name: http
+                protocol: TCP
+                port: 80
+                targetPort: 80
+          ---
+          apiVersion: traefik.containo.us/v1alpha1
+          kind: IngressRoute
+          metadata:
+            name: nginx
+          spec:
+            entryPoints: [web]
+            routes:
+              - kind: Rule
+                match: Path(`/`)
+                services:
+                  - kind: Service
+                    name: nginx
+                    port: 80
+                    scheme: http
+          EOF
+        creates: /root/nginx-with-pvc-and-ingress.yml
