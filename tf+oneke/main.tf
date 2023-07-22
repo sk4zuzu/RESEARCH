@@ -133,31 +133,31 @@ resource "opennebula_service_template" "oneke" {
 }
 
 resource "opennebula_service" "oneke" {
-  name           = local.name
-  template_id    = opennebula_service_template.oneke.id
+  name        = local.name
+  template_id = opennebula_service_template.oneke.id
   extra_template = jsonencode({
     networks_values = [
-        { Public = { id = "0" } },
-        { Private = { id = "1" } },
+      { Public = { id = "0" } },
+      { Private = { id = "1" } },
     ]
     custom_attrs_values = {
-        ONEAPP_VROUTER_ETH0_VIP0        = "172.16.100.86"
-        ONEAPP_VROUTER_ETH1_VIP0        = "172.20.100.86"
-        ONEAPP_K8S_EXTRA_SANS           = "localhost,127.0.0.1"
-        ONEAPP_K8S_LOADBALANCER_RANGE   = ""
-        ONEAPP_K8S_LOADBALANCER_CONFIG  = ""
-        ONEAPP_STORAGE_DEVICE           = "/dev/vdb"
-        ONEAPP_STORAGE_FILESYSTEM       = "xfs"
-        ONEAPP_VNF_NAT4_ENABLED         = "YES"
-        ONEAPP_VNF_NAT4_INTERFACES_OUT  = "eth0"
-        ONEAPP_VNF_ROUTER4_ENABLED      = "YES"
-        ONEAPP_VNF_ROUTER4_INTERFACES   = "eth0,eth1"
-        ONEAPP_VNF_HAPROXY_INTERFACES   = "eth0"
-        ONEAPP_VNF_HAPROXY_REFRESH_RATE = "30"
-        ONEAPP_VNF_HAPROXY_CONFIG       = ""
-        ONEAPP_VNF_HAPROXY_LB2_PORT     = "443"
-        ONEAPP_VNF_HAPROXY_LB3_PORT     = "80"
-        ONEAPP_VNF_KEEPALIVED_VRID      = "1"
+      ONEAPP_VROUTER_ETH0_VIP0        = "172.16.100.86"
+      ONEAPP_VROUTER_ETH1_VIP0        = "172.20.100.86"
+      ONEAPP_K8S_EXTRA_SANS           = "localhost,127.0.0.1"
+      ONEAPP_K8S_LOADBALANCER_RANGE   = ""
+      ONEAPP_K8S_LOADBALANCER_CONFIG  = ""
+      ONEAPP_STORAGE_DEVICE           = "/dev/vdb"
+      ONEAPP_STORAGE_FILESYSTEM       = "xfs"
+      ONEAPP_VNF_NAT4_ENABLED         = "YES"
+      ONEAPP_VNF_NAT4_INTERFACES_OUT  = "eth0"
+      ONEAPP_VNF_ROUTER4_ENABLED      = "YES"
+      ONEAPP_VNF_ROUTER4_INTERFACES   = "eth0,eth1"
+      ONEAPP_VNF_HAPROXY_INTERFACES   = "eth0"
+      ONEAPP_VNF_HAPROXY_REFRESH_RATE = "30"
+      ONEAPP_VNF_HAPROXY_CONFIG       = ""
+      ONEAPP_VNF_HAPROXY_LB2_PORT     = "443"
+      ONEAPP_VNF_HAPROXY_LB3_PORT     = "80"
+      ONEAPP_VNF_KEEPALIVED_VRID      = "1"
     }
   })
 }
