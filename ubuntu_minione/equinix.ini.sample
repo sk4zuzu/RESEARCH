@@ -1,9 +1,0 @@
-[all:vars]
-ansible_user=root
-minione_version=6.6.0.1
-#minione_args=--frontend
-one_version=6.6
-one_password=asd
-
-[ubuntu]
-ubuntu1 ansible_port=22 ansible_host=I.P.V.4

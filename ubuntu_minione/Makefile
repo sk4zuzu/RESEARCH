@@ -1,7 +1,7 @@
 SHELL := $(shell which bash)
 SELF  := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 
-I         ?= $(SELF)/hosts.ini
+I         ?= $(SELF)/inventory/hosts.yml
 INVENTORY ?= $(I)
 
 export
@@ -15,3 +15,11 @@ deploy: $(INVENTORY) $(SELF)/deploy.yml
 
 market: $(INVENTORY) $(SELF)/market.yml
 	cd $(SELF)/ && ansible-playbook -vv -i $^
+
+.PHONY: ssh
+
+ssh: SSH_OPTS := -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
+ssh: $(INVENTORY)
+	cd $(SELF)/ && ssh $(SSH_OPTS) \
+	-o User=$$(yq .all.vars.ansible_user $<) \
+	$$(yq .ubuntu.hosts.ubuntu1.ansible_host $<)

@@ -73,10 +73,8 @@
         set -o errexit
         cat >/etc/systemd/system/market-watcher.path <<'EOF'
         [Path]
-        PathModified=/opt/marketplace/appliances/OneKE_CE_1.24/
-        PathModified=/opt/marketplace/appliances/OneKE_EE_1.24/
-        PathModified=/opt/marketplace/appliances/OneKE_CE_1.27/
-        PathModified=/opt/marketplace/appliances/OneKE_EE_1.27/
+        PathModified=/opt/marketplace/appliances/OneKE_1.24/
+        PathModified=/opt/marketplace/appliances/OneKE_1.27/
         PathModified=/opt/marketplace/appliances/all/
         PathModified=/opt/marketplace/appliances/kernel/
         PathModified=/opt/marketplace/appliances/kvm/
