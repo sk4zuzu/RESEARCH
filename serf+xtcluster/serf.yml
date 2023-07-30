@@ -1,0 +1,93 @@
+---
+- package:
+    name: [ruby]
+
+- unarchive:
+    src: "https://releases.hashicorp.com/serf/{{ _version }}/serf_{{ _version }}_linux_amd64.zip"
+    dest: /usr/local/bin/
+    remote_src: true
+    include: [serf]
+    creates: /usr/local/bin/serf
+  vars:
+    _version: 0.8.2
+
+- file:
+    dest: "{{ _serf[item].dest }}"
+    state: directory
+    owner: 0
+    group: 0
+    mode: "{{ _serf[item].mode }}"
+  loop: "{{ range(_serf | count) }}"
+  vars:
+    _serf:
+      - dest: /etc/serf/
+        mode: u=rwx,g=rx,o=
+
+- copy:
+    dest: "{{ _serf[item].dest }}"
+    owner: 0
+    group: 0
+    mode: "{{ _serf[item].mode }}"
+    content: "{{ _serf[item].content }}"
+  loop: "{{ range(_serf | count) }}"
+  vars:
+    _serf:
+      - dest: /etc/init.d/serf
+        mode: u=rwx,g=rx,o=
+        content: |
+          #!/sbin/openrc-run
+
+          SERF_LOGFILE="${SERF_LOGFILE:-/var/log/${RC_SVCNAME}.log}"
+
+          supervisor=supervise-daemon
+
+          name="serf"
+          command="/usr/local/bin/serf"
+          command_args="${SERF_EXEC} ${SERF_OPTS} >>${SERF_LOGFILE} 2>&1"
+
+          output_log="${SERF_LOGFILE}"
+          error_log="${SERF_LOGFILE}"
+
+          pidfile="/run/serf.pid"
+          respawn_delay=5
+          respawn_max=0
+
+          rc_ulimit="${SERF_ULIMIT:--c unlimited -n 1048576 -u unlimited}"
+
+          depend() {
+              need net cgroups
+              after firewall
+          }
+
+          start_pre() {
+              checkpath -f -m 0644 -o root:root "${SERF_LOGFILE}"
+          }
+      - dest: /etc/conf.d/serf
+        mode: u=rwx,g=rx,o=
+        content: |
+          SERF_EXEC="agent"
+          SERF_OPTS="-config-file=/etc/serf/config.json"
+      - dest: /etc/serf/config.json
+        mode: u=rw,g=r,o=
+        content: |
+          {
+            "discover": "asd",
+            "event_handlers": ["member-join,member-leave=/etc/serf/xtcluster.rb"]
+          }
+      - dest: /etc/serf/xtcluster.rb
+        mode: u=rwx,g=rx,o=
+        content: |
+          {{ lookup('file', playbook_dir ~ '/xtcluster.rb') }}
+  register: copy
+
+- service:
+    name: serf
+    state: "{{ item.state }}"
+    enabled: "{{ item.enabled | d(omit) }}"
+  when: item.when
+  loop:
+    - state: started
+      enabled: true
+      when: "{{ true }}"
+    - state: restarted
+      when: "{{ copy is changed }}"

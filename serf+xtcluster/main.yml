@@ -1,0 +1,21 @@
+---
+- hosts: a1a:a1b
+  gather_facts: true
+  gather_subset: [min, network]
+  tasks: []
+
+- hosts: a1b
+  tasks:
+    - import_tasks:
+        file: "{{ playbook_dir }}/nginx.yml"
+      tags: [nginx]
+
+- hosts: a1a
+  tasks:
+    - import_tasks:
+        file: "{{ playbook_dir }}/haproxy.yml"
+      tags: [haproxy]
+
+    - import_tasks:
+        file: "{{ playbook_dir }}/serf.yml"
+      tags: [serf]

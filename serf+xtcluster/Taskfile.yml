@@ -1,0 +1,39 @@
+version: '3'
+
+vars:
+  V: '{{ default "-vv" .V }}'
+  VERBOSE: '{{ default .V .VERBOSE }}'
+  I: '{{ default "inventory.yml" .I }}'
+  INVENTORY: '{{ default .I .INVENTORY }}'
+  T: '{{ default "" .T }}'
+  TAGS: '{{ default .T .TAGS }}'
+
+tasks:
+  default:
+    cmds:
+      - ansible-playbook '{{ .VERBOSE }}' -i '{{ .INVENTORY }}' main.yml {{ if ne .TAGS "" }}-t {{ .TAGS }}{{ end }}
+    silent: true
+
+  test1:
+    cmds:
+      - curl http://10.2.20.86/test1
+      - sleep 1
+      - curl http://10.2.20.86/test1
+      - sleep 1
+      - curl http://10.2.20.86/test1
+      - sleep 1
+      - curl http://10.2.20.86/test1
+      - sleep 1
+    silent: true
+
+  test2:
+    cmds:
+      - curl http://10.2.20.86/test2
+      - sleep 1
+      - curl http://10.2.20.86/test2
+      - sleep 1
+      - curl http://10.2.20.86/test2
+      - sleep 1
+      - curl http://10.2.20.86/test2
+      - sleep 1
+    silent: true

@@ -1,0 +1,57 @@
+---
+- package:
+    name: [nginx]
+
+- file:
+    dest: "{{ _nginx[item].dest }}"
+    state: directory
+    owner: nginx
+    group: nginx
+    mode: "{{ _nginx[item].mode }}"
+  loop: "{{ range(_nginx | count) }}"
+  vars:
+    _nginx:
+      - dest: /etc/nginx/http.d/
+        mode: u=rwx,g=rx,o=
+      - dest: /var/lib/nginx/html/
+        mode: u=rwx,g=rx,o=
+
+- copy:
+    dest: "{{ _nginx[item].dest }}"
+    owner: nginx
+    group: nginx
+    mode: "{{ _nginx[item].mode }}"
+    content: "{{ _nginx[item].content }}"
+  loop: "{{ range(_nginx | count) }}"
+  vars:
+    _nginx:
+      - dest: /var/lib/nginx/html/index.html
+        mode: u=rw,g=r,o=
+        content: |
+          {{ inventory_hostname }}
+      - dest: /etc/nginx/http.d/default.conf
+        mode: u=rw,g=r,o=
+        content: |
+          server {
+            listen 80 default_server;
+            location /test2 {
+              root /var/lib/nginx/html/;
+              try_files /index.html =404;
+            }
+            location = /404.html {
+              internal;
+            }
+          }
+  register: copy
+
+- service:
+    name: nginx
+    state: "{{ item.state }}"
+    enabled: "{{ item.enabled | d(omit) }}"
+  when: item.when
+  loop:
+    - state: started
+      enabled: true
+      when: "{{ true }}"
+    - state: restarted
+      when: "{{ copy is changed }}"
