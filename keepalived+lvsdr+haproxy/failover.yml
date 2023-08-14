@@ -1,0 +1,46 @@
+---
+- package:
+    name: [ruby]
+  tags: [preinstall]
+
+- copy:
+    dest: "{{ _failover[item].dest }}"
+    owner: 0
+    group: 0
+    mode: "{{ _failover[item].mode }}"
+    content: "{{ _failover[item].content }}"
+  loop: "{{ range(_failover | count) }}"
+  vars:
+    _failover:
+      - dest: /etc/keepalived/failover.rb
+        mode: u=rwx,g=rx,o=
+        content: |
+          {{ lookup('file', playbook_dir ~ '/failover.rb') }}
+      - dest: /etc/init.d/failover
+        mode: u=rwx,g=rx,o=
+        content: |
+          #!/sbin/openrc-run
+
+          command="/usr/bin/ruby /etc/keepalived/failover.rb"
+          command_args="/run/keepalived/failover.sock"
+          command_background="yes"
+
+          pidfile="/run/keepalived/$RC_SVCNAME.pid"
+
+          depend() {
+            use net
+            after keepalived
+          }
+  register: copy
+
+- service:
+    name: failover
+    state: >-
+      {{ 'restarted' if copy is changed else 'started' }}
+    enabled: true
+
+- file:
+    dest: /root/failover.log
+    src: /var/log/keepalived/failover.log
+    state: link
+    follow: false

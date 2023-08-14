@@ -1,0 +1,21 @@
+---
+- package:
+    name: [iproute2, iptables]
+  tags: [preinstall]
+
+- shell:
+    cmd: |
+      set -eo pipefail
+      {{ _lvsdr[item].cmd }}
+    executable: /bin/bash
+  loop: "{{ range(_lvsdr | count) }}"
+  vars:
+    _lvsdr:
+      - cmd: |
+          arptables -F
+          arptables -A INPUT -d {{ _vip }} -j DROP
+          arptables -A OUTPUT -s {{ _vip }} -j mangle --mangle-ip-s {{ ansible_host }}
+      - cmd: |
+          ip address replace {{ a1vip }} dev eth0 label eth0:a1vip
+    _vip: >-
+      {{ a1vip.split('/')[0] }}

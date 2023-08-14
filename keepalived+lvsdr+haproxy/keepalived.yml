@@ -1,0 +1,89 @@
+---
+- package:
+    name: [ipvsadm, keepalived]
+  tags: [preinstall]
+
+- file:
+    dest: "{{ _keepalived[item].dest }}"
+    state: directory
+    owner: 0
+    group: 0
+    mode: "{{ _keepalived[item].mode }}"
+  loop: "{{ range(_keepalived | count) }}"
+  vars:
+    _keepalived:
+      - dest: /etc/keepalived/
+        mode: u=rwx,g=rx,o=
+      - dest: /etc/keepalived/conf.d/
+        mode: u=rwx,g=rx,o=
+      - dest: /var/log/keepalived/
+        mode: u=rwx,g=rx,o=
+
+- copy:
+    dest: "{{ _keepalived[item].dest }}"
+    owner: 0
+    group: 0
+    mode: "{{ _keepalived[item].mode }}"
+    content: "{{ _keepalived[item].content }}"
+  loop: "{{ range(_keepalived | count) }}"
+  vars:
+    _keepalived:
+      - dest: /etc/keepalived/keepalived.conf
+        mode: u=rw,g=r,o=
+        content: |
+          include /etc/keepalived/conf.d/*.conf
+      - dest: /etc/keepalived/conf.d/global.conf
+        mode: u=rw,g=r,o=
+        content: |
+          global_defs {
+            vrrp_notify_fifo /run/keepalived/failover.sock
+          }
+      - dest: /etc/keepalived/conf.d/vrrp.conf
+        mode: u=rw,g=ro=
+        content: |
+          vrrp_sync_group asd {
+            group {
+              ETH0
+            }
+          }
+          vrrp_instance ETH0 {
+            state BACKUP
+            interface eth0
+            virtual_router_id 86
+            priority 100
+            advert_int 1
+            virtual_ipaddress {
+              {{ a1vip }}
+            }
+          }
+      - dest: /etc/keepalived/conf.d/lvs.conf
+        mode: u=rw,g=r,o=
+        content: |
+          virtual_server {{ a1vip.split('/')[0] }} 80 {
+            delay_loop 6
+            lb_algo rr
+            lb_kind DR
+            persistence_timeout 50
+            protocol TCP
+          {% for host in groups.a1b %}
+            real_server {{ hostvars[host].ansible_host }} 80 {
+              weight 1
+              HTTP_GET {
+                url {
+                  path /
+                  status_code 200
+                }
+                connect_timeout 3
+                nb_get_retry 3
+                delay_before_retry 3
+              }
+            }
+          {% endfor %}
+          }
+  register: copy
+
+- service:
+    name: keepalived
+    state: >-
+      {{ 'restarted' if copy is changed else 'started' }}
+    enabled: true

@@ -1,0 +1,79 @@
+---
+- package:
+    name: [haproxy]
+  tags: [preinstall]
+
+- file:
+    dest: "{{ _haproxy[item].dest }}"
+    state: directory
+    owner: haproxy
+    group: haproxy
+    mode: "{{ _haproxy[item].mode }}"
+  loop: "{{ range(_haproxy | count) }}"
+  vars:
+    _haproxy:
+      - dest: /etc/haproxy/
+        mode: u=rwx,g=rx,o=
+      - dest: /etc/haproxy/static/
+        mode: u=rwx,g=rx,o=
+
+- copy:
+    dest: "{{ _haproxy[item].dest }}"
+    owner: haproxy
+    group: haproxy
+    mode: "{{ _haproxy[item].mode }}"
+    content: "{{ _haproxy[item].content }}"
+  loop: "{{ range(_haproxy | count) }}"
+  vars:
+    _haproxy:
+      - dest: /etc/haproxy/static/test1.txt
+        mode: u=rw,g=r,o=
+        content: |
+          HTTP/1.0 200 OK
+          Cache-Control: no-cache
+          Connection: close
+          Content-Type: text/html
+
+          {{ inventory_hostname }}
+      - dest: /etc/haproxy/haproxy.cfg
+        mode: u=rw,g=r,o=
+        content: |
+          global
+            log 127.0.0.1 local0
+            stats socket /var/run/haproxy.sock mode 666 level admin
+            stats timeout 120s
+            user haproxy
+            group haproxy
+            daemon
+
+          defaults
+            log global
+            retries 3
+            maxconn 2000
+            timeout connect 5s
+            timeout client 120s
+            timeout server 120s
+
+          frontend a1vip
+            mode http
+            bind 0.0.0.0:8080
+            acl is-path-test1 path /test1
+            use_backend test1 if is-path-test1
+            default_backend test2
+
+          backend test1
+            mode http
+            errorfile 503 /etc/haproxy/static/test1.txt
+
+          backend test2
+            mode http
+            {% for server in groups.a1b %}
+            server {{ server }} {{ hostvars[server].ansible_host }}:80 check
+            {% endfor %}
+  register: copy
+
+- service:
+    name: haproxy
+    state: >-
+      {{ 'restarted' if copy is changed else 'started' }}
+    enabled: true
