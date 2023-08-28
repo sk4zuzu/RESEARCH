@@ -1,0 +1,18 @@
+dataplaneapi:
+  host: 0.0.0.0
+  port: 5555
+  user:
+    - name: admin
+      password: asd
+      insecure: true
+  transaction:
+    transaction_dir: /tmp/haproxy
+haproxy:
+  config_file: /etc/haproxy/haproxy.cfg
+  haproxy_bin: /usr/sbin/haproxy
+  reload:
+    reload_delay: 5
+    reload_cmd: >-
+      kill -SIGUSR2 1
+    restart_cmd: >-
+      kill -SIGUSR2 1

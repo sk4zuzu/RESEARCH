@@ -1,0 +1,48 @@
+---
+version: "2"
+
+networks:
+  default:
+    ipam:
+      driver: default
+      config:
+      - subnet: ${SUBNET_PREFIX}.0/24
+        gateway: ${SUBNET_PREFIX}.1
+
+services:
+  http1:
+    container_name: http1
+    image: ${COMPOSE_PROJECT_NAME}-http:pls
+    build:
+      context: .
+      dockerfile: http.Dockerfile
+    networks:
+      default:
+        aliases: [http1.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.2
+
+  http2:
+    container_name: http2
+    image: ${COMPOSE_PROJECT_NAME}-http:pls
+    build:
+      context: .
+      dockerfile: http.Dockerfile
+    networks:
+      default:
+        aliases: [http2.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.4
+
+  haproxy0:
+    container_name: haproxy0
+    image: ${COMPOSE_PROJECT_NAME}-haproxy:pls
+    build:
+      context: .
+      dockerfile: haproxy.Dockerfile
+      args:
+        SUBNET_PREFIX: ${SUBNET_PREFIX}
+    privileged: true
+    networks:
+      default:
+        aliases: [haproxy0.poc.svc]
+        ipv4_address: ${SUBNET_PREFIX}.8
+    depends_on: [http1, http2]
