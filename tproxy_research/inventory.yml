@@ -2,14 +2,20 @@ all:
   vars:
     ansible_user: ubuntu
 
-service:
+gateway:
   hosts:
     v1b1: { ansible_host: v1b1 }
+
+service:
+  hosts:
+    v1b2: { ansible_host: v1b2 }
 
 hypervisor:
   hosts:
     v1a1: { ansible_host: v1a1 }
+    v1a2: { ansible_host: v1a2 }
 
 guest:
   hosts:
-    u2a1: { ansible_host: u2a1 }
+    v2a1: { ansible_host: v2a1 }
+    v3a1: { ansible_host: v3a1 }

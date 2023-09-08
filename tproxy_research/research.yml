@@ -1,11 +1,26 @@
 ---
-- hosts: service:hypervisor:guest
+- hosts: gateway:service:gateway:hypervisor:guest
   gather_facts: true
   module_defaults: &module_defaults
     shell: { executable: /bin/bash }
   tasks: []
 
+- hosts: gateway
+  module_defaults: *module_defaults
+  tasks:
+    - apt:
+        name: [iproute2, iptables]
+        update_cache: true
+
+    - shell:
+        cmd: |
+          {{ _args | iptables_cmd(table='nat', chain='POSTROUTING') }}
+      vars:
+        _args: >-
+          -o eth0 -j MASQUERADE
+
 - hosts: service:hypervisor:guest
+  serial: 2
   module_defaults: *module_defaults
   tasks:
     - apt:
@@ -42,23 +57,34 @@
 - hosts: hypervisor
   module_defaults: *module_defaults
   tasks:
-    - shell: |
-        {{ _args | iptables_cmd(table='mangle', chain='PREROUTING') }}
+    - shell:
+        cmd: |
+          {{ _args | iptables_cmd(table='mangle', chain='PREROUTING') }}
       vars:
         _args: >-
           -p tcp -m tcp --dport 5030 -j TPROXY
-          --on-ip 127.0.0.1
+          --on-ip 169.254.16.9
           --on-port 7777
           --tproxy-mark 0x13a6/0xffffffff
 
-    - shell: |
-        {{ _args | ip_rule_replace_cmd }}
+    - shell:
+        cmd: |
+          {{ _args | ip_rule_replace_cmd }}
       vars:
         _args: >-
           fwmark 0x13a6/0xffffffff lookup 5030
 
-    - shell: |
-        ip route replace local 0.0.0.0/0 dev lo table 5030
+    - shell:
+        cmd: |
+          ip route replace local 0.0.0.0/0 dev lo table 5030
+
+    - shell:
+        cmd: |
+          ip address flush br1
+
+    - shell:
+        cmd: |
+          ip neighbour add proxy 169.254.16.9 dev br1
 
     - copy:
         dest: /proxysvc.rb
@@ -82,6 +108,10 @@
 - hosts: guest
   module_defaults: *module_defaults
   tasks:
+    - shell:
+        cmd: |
+          ip route replace 169.254.16.9/32 dev eth0
+
     - copy:
         dest: /beaconsvc.rb
         mode: u=rw,go=r

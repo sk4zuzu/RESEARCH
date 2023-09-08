@@ -4,11 +4,13 @@ $stdout.sync = true
 
 require 'async/io'
 require 'async/io/stream'
+require 'socket'
 
 class BeaconSvc
 
-    def initialize(addr = '169.254.169.254', port = 5030)
+    def initialize(addr = '169.254.16.9', port = 5030)
         @endpoint = Async::IO::Endpoint.tcp(addr, port)
+        @message = Socket.gethostname
     end
 
     def run
@@ -17,7 +19,7 @@ class BeaconSvc
                 stream = Async::IO::Stream.new(peer)
                 loop do
                     task.sleep 1
-                    stream.puts 'asd'
+                    stream.puts @message
                     Console.logger.debug(self) {"RSP: `#{stream.gets.inspect}`"}
                 end
             end
