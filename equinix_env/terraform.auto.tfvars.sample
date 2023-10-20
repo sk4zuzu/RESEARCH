@@ -1,0 +1,13 @@
+auth_token = "ABCDEFG12345678abcdefg12345678FU"
+project_id = "abcdefg1-abc1-abc2-abc3-abcdefg12345"
+
+hosts = [
+  { hostname         = "one"
+    plan             = "c3.small.x86"
+    metro            = "FR"
+    operating_system = "ubuntu_22_04" },
+  { hostname         = "kvm"
+    plan             = "c3.small.x86"
+    metro            = "FR"
+    operating_system = "ubuntu_22_04" },
+]
