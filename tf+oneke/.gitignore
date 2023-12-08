@@ -1,3 +1,5 @@
+/go/
 /.terraform/
+/terraform.d/
 /terraform.tfstate*
 /terraform.auto.tfvars

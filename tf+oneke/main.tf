@@ -1,8 +1,9 @@
 terraform {
   required_providers {
     opennebula = {
-      source  = "OpenNebula/opennebula"
-      version = "1.2.2"
+      #source  = "OpenNebula/opennebula"
+      source  = "terraform.local/local/opennebula"
+      version = "1.3.1"
     }
   }
 }
@@ -25,7 +26,7 @@ variable "one" {
 data "http" "appliances" {
   url = "https://marketplace.opennebula.io/appliance"
   request_headers = {
-    User-Agent = "OpenNebula 6.6.2"
+    User-Agent = "OpenNebula 6.8.0"
     Accept     = "application/json"
   }
 }
@@ -141,23 +142,41 @@ resource "opennebula_service" "oneke" {
       { Private = { id = "1" } },
     ]
     custom_attrs_values = {
-      ONEAPP_VROUTER_ETH0_VIP0        = "172.16.100.86"
-      ONEAPP_VROUTER_ETH1_VIP0        = "172.20.100.86"
-      ONEAPP_K8S_EXTRA_SANS           = "localhost,127.0.0.1"
-      ONEAPP_K8S_LOADBALANCER_RANGE   = ""
-      ONEAPP_K8S_LOADBALANCER_CONFIG  = ""
-      ONEAPP_STORAGE_DEVICE           = "/dev/vdb"
-      ONEAPP_STORAGE_FILESYSTEM       = "xfs"
-      ONEAPP_VNF_NAT4_ENABLED         = "YES"
-      ONEAPP_VNF_NAT4_INTERFACES_OUT  = "eth0"
-      ONEAPP_VNF_ROUTER4_ENABLED      = "YES"
-      ONEAPP_VNF_ROUTER4_INTERFACES   = "eth0,eth1"
+      ONEAPP_VROUTER_ETH0_VIP0 = "192.168.150.86"
+      ONEAPP_VROUTER_ETH1_VIP0 = "192.168.200.86"
+      ONEAPP_K8S_EXTRA_SANS    = "localhost,127.0.0.1"
+
+      ONEAPP_K8S_MULTUS_ENABLED = "NO"
+      ONEAPP_K8S_MULTUS_CONFIG  = ""
+
+      ONEAPP_K8S_CNI_PLUGIN   = "cilium"
+      ONEAPP_K8S_CNI_CONFIG   = ""
+      ONEAPP_K8S_CILIUM_RANGE = ""
+
+      ONEAPP_K8S_LONGHORN_ENABLED = "YES"
+      ONEAPP_STORAGE_DEVICE       = "/dev/vdb"
+      ONEAPP_STORAGE_FILESYSTEM   = "xfs"
+
+      ONEAPP_K8S_METALLB_ENABLED = "NO"
+      ONEAPP_K8S_METALLB_CONFIG  = ""
+      ONEAPP_K8S_METALLB_RANGE   = ""
+
+      ONEAPP_K8S_TRAEFIK_ENABLED      = "YES"
       ONEAPP_VNF_HAPROXY_INTERFACES   = "eth0"
       ONEAPP_VNF_HAPROXY_REFRESH_RATE = "30"
       ONEAPP_VNF_HAPROXY_CONFIG       = ""
       ONEAPP_VNF_HAPROXY_LB2_PORT     = "443"
       ONEAPP_VNF_HAPROXY_LB3_PORT     = "80"
-      ONEAPP_VNF_KEEPALIVED_VRID      = "1"
+
+      ONEAPP_VNF_NAT4_ENABLED        = "YES"
+      ONEAPP_VNF_NAT4_INTERFACES_OUT = "eth0"
+      ONEAPP_VNF_ROUTER4_ENABLED     = "YES"
+      ONEAPP_VNF_ROUTER4_INTERFACES  = "eth0,eth1"
+      ONEAPP_VNF_KEEPALIVED_VRID     = "1"
     }
   })
+  timeouts {
+    create = "15m"
+    delete = "5m"
+  }
 }

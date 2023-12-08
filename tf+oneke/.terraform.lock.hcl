@@ -20,24 +20,10 @@ provider "registry.terraform.io/hashicorp/http" {
   ]
 }
 
-provider "registry.terraform.io/opennebula/opennebula" {
-  version     = "1.2.2"
-  constraints = "1.2.2"
+provider "terraform.local/local/opennebula" {
+  version     = "1.3.1"
+  constraints = "1.3.1"
   hashes = [
-    "h1:uglzLHFt+bKtaBGr+EUosSTKUx3EfIO2DDCK121zkVo=",
-    "zh:07c2c5b0200b23756a96e2d07949e61bb559066f774b7961e7f15b74661c1d79",
-    "zh:122e1adafa6f42125bd213c358e6e88dd57814cc0e1b19a3851d4e73e3c01a18",
-    "zh:178ce6296d7c17588384fc04f8870795a83296db4eb590b7f7f25082d2aaeb77",
-    "zh:260e229c1e0178c5f3a8aa8dae91d66f322beb918bf5d0f6688e67f0a2774b3c",
-    "zh:29f20ed67d529e0a528995e3dbb3f606dab651c44ced68f2d62c81f814057d2a",
-    "zh:5b67f7833901e8f871b523cfd150270b346e874ea83a06cf593b542082821cc5",
-    "zh:7427dc6ece9cd19b22cd1f361d191900a09e1ab741f0f215312a82481bf713e7",
-    "zh:9ed4ed6da60778f1dbefae753e2e5b576b828291265e6f3e119327ed3b420fe9",
-    "zh:aa5d3148529ddcc581c5a6c70a83ee881c67d9ca60fc0e1def7011522759a9ef",
-    "zh:bd5709a8b084866a41be8a56ef13e6ea48db2743685ced2f6fea0d3dfdfa4d44",
-    "zh:c5cf011c08b7622f3792fc55e82687c6d4cf58610025030a6645a45b7b9eb253",
-    "zh:deab1d2a050c319a7fbefa62e5779d1213a86d1cf7923600b09905a897760764",
-    "zh:e78bc0fac329dcf228f8e0ef2391c38970b4d61eaefcbb418e71ab7ef024e3e0",
-    "zh:eddea0b4a4115e742238bbbe99805ce614ef0e6e151899ecc0a922e1897acb91",
+    "h1:8nmvO/9ZaXr8x8ATei/c2HZXTtjsF3fNO0pt2E4jH3g=",
   ]
 }
