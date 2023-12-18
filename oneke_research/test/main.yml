@@ -1,0 +1,72 @@
+---
+- hosts: frontend
+  roles:
+    - role: opennebula.deploy.helper.facts
+    - role: opennebula.deploy.repository
+
+- hosts: frontend
+  tasks:
+    - ansible.builtin.package:
+        name: "{{ _packages | flatten }}"
+      vars:
+        _packages:
+          - [gawk, git, golang, rsync]
+          - [opennebula, opennebula-flow, opennebula-node-lxc]
+
+    - ansible.posix.synchronize:
+        dest: &dest ~oneadmin/terraform-provider-opennebula/
+        src: ~/_git/terraform-provider-opennebula/
+        checksum: true
+        delete: true
+
+    - ansible.builtin.file:
+        path: *dest
+        owner: oneadmin
+        group: oneadmin
+        recurse: true
+
+    - ansible.builtin.shell:
+        cmd: source .github/scripts/oned.sh && touch /var/tmp/oned.sh.done
+        executable: /bin/bash
+        chdir: *dest
+        creates: /var/tmp/oned.sh.done
+
+    - ansible.builtin.shell:
+        cmd: "{{ item }}"
+        executable: /bin/bash
+      loop:
+        - onevm list --no-header | awk '{print $1}' | xargs -rn1 onevm recover --delete
+        - onevrouter list --no-header | awk '{print $1}' | xargs -rn1 onevrouter delete
+        - oneflow list | tail -n+2 | awk '{print $1}' | xargs -rn1 oneflow recover --delete
+        - oneflow-template list | tail -n+2 | awk '{print $1}' | xargs -rn1 oneflow-template delete
+        - onetemplate list --no-header | awk '{print $1}' | xargs -rn1 onetemplate delete
+        - oneimage list --no-header | awk '{print $1}' | xargs -rn1 oneimage delete
+        - onevnet list --no-header | awk '{print $1}' | xargs -rn1 onevnet delete
+        - onevntemplate list --no-header | awk '{print $1}' | xargs -rn1 onevntemplate delete
+
+    - ansible.builtin.shell:
+        cmd: "{{ item }}"
+        executable: /bin/bash
+        chdir: *dest
+      environment:
+        GOFLAGS: -buildvcs=false
+      loop:
+        - go mod edit -replace github.com/OpenNebula/one/src/oca/go/src/goca={{ _goca }}
+        - go mod tidy
+        - go install
+      vars:
+        _goca: github.com/OpenNebula/one/src/oca/go/src/goca@master
+
+    - ansible.builtin.shell:
+        cmd: "go test {{ _test }} -v ${TESTARGS} -timeout 120m"
+        executable: /bin/bash
+        chdir: *dest
+      environment:
+        GOFLAGS: -buildvcs=false
+        OPENNEBULA_ENDPOINT: http://localhost:2633/RPC2
+        OPENNEBULA_USERNAME: oneadmin
+        OPENNEBULA_PASSWORD: opennebula
+        OPENNEBULA_FLOW_ENDPOINT: http://localhost:2474
+        TF_ACC: 1
+      vars:
+        _test: $(go list ./... | grep -v 'vendor') -run TestAccVirtualRouter
