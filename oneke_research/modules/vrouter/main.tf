@@ -49,7 +49,6 @@ resource "opennebula_virtual_router_instance_template" "oneke" {
     SSH_PUBLIC_KEY = "$USER[SSH_PUBLIC_KEY]"
     PASSWORD       = "asd"
 
-    ONEAPP_VROUTER_ETH1_VIP0       = "172.20.0.86"
     ONEAPP_VNF_NAT4_ENABLED        = "YES"
     ONEAPP_VNF_NAT4_INTERFACES_OUT = "eth0"
 
