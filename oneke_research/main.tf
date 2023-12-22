@@ -17,32 +17,50 @@ provider "opennebula" {
 locals {
   nics = {
     eth0 = {
-      network_id  = data.opennebula_virtual_network.oneke["service"].id
-      floating_ip = true
+      network_id  = opennebula_virtual_network.ethernet.id
+      floating_ip = false
     }
     eth1 = {
-      network_id  = opennebula_virtual_network.oneke["reservation"].id
+      network_id  = data.opennebula_virtual_network.service.id
+      floating_ip = true
+    }
+    eth2 = {
+      network_id  = opennebula_virtual_network.reservation.id
       floating_ip = true
     }
   }
 }
 
-data "opennebula_virtual_network" "oneke" {
-  for_each = toset(["service", "private"])
-  name     = each.key
+resource "opennebula_virtual_network" "ethernet" {
+  name = "ethernet"
+  ar {
+    ar_type = "ETHER"
+    size    = 16
+  }
 }
 
-resource "opennebula_virtual_network" "oneke" {
-  for_each = toset(["reservation"])
-  name     = each.key
+data "opennebula_virtual_network" "service" {
+  name = "service"
+}
 
-  reservation_vnet    = data.opennebula_virtual_network.oneke["private"].id
-  reservation_size    = 20
-  reservation_ar_id   = 0
-  reservation_auto_gw = true
+data "opennebula_virtual_network" "private" {
+  name = "private"
+}
+
+resource "opennebula_virtual_network" "reservation" {
+  name                 = "reservation"
+  reservation_vnet     = data.opennebula_virtual_network.private.id
+  reservation_size     = 20
+  reservation_ar_id    = 0
+  reservation_first_ip = "172.20.0.123"
+  reservation_auto_gw  = true
 }
 
 module "vrouter" {
+  depends_on = [
+    opennebula_virtual_network.ethernet,
+    opennebula_virtual_network.reservation,
+  ]
   source    = "./modules/vrouter/"
   instances = 2
   nics      = local.nics
@@ -51,5 +69,5 @@ module "vrouter" {
 module "oneflow" {
   depends_on = [module.vrouter]
   source     = "./modules/oneflow/"
-  network_id = local.nics["eth1"].network_id
+  network_id = local.nics["eth2"].network_id
 }
