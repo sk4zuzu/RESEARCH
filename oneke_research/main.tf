@@ -17,25 +17,15 @@ provider "opennebula" {
 locals {
   nics = {
     eth0 = {
-      network_id  = opennebula_virtual_network.ethernet.id
-      floating_ip = false
+      network_id    = data.opennebula_virtual_network.service.id
+      floating_ip   = true
+      floating_only = true
     }
     eth1 = {
-      network_id  = data.opennebula_virtual_network.service.id
-      floating_ip = true
+      network_id    = opennebula_virtual_network.reservation.id
+      floating_ip   = true
+      floating_only = false
     }
-    eth2 = {
-      network_id  = opennebula_virtual_network.reservation.id
-      floating_ip = true
-    }
-  }
-}
-
-resource "opennebula_virtual_network" "ethernet" {
-  name = "ethernet"
-  ar {
-    ar_type = "ETHER"
-    size    = 16
   }
 }
 
@@ -57,17 +47,29 @@ resource "opennebula_virtual_network" "reservation" {
 }
 
 module "vrouter" {
-  depends_on = [
-    opennebula_virtual_network.ethernet,
-    opennebula_virtual_network.reservation,
-  ]
-  source    = "./modules/vrouter/"
-  instances = 2
-  nics      = local.nics
+  depends_on = [opennebula_virtual_network.reservation]
+  source     = "./modules/vrouter/"
+  instances  = 2
+  nics       = local.nics
 }
 
 module "oneflow" {
   depends_on = [module.vrouter]
   source     = "./modules/oneflow/"
-  network_id = local.nics["eth2"].network_id
+  network_id = local.nics["eth1"].network_id
 }
+
+#module "sdnat" {
+#  depends_on = [module.oneflow]
+#  source     = "./modules/sdnat/"
+#  network_id = local.nics["eth1"].network_id
+#}
+
+/*
+onevm nic-attach vr_sdnat <<'EOF'
+NIC_ALIAS = [
+  NETWORK_ID = "0",
+  PARENT     = "NIC0",
+  EXTERNAL   = "YES" ]
+EOF
+*/

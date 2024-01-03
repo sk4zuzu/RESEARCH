@@ -29,7 +29,7 @@ locals {
     EOT
     rc-update add nginx default
     # HAPROXY
-    onegate vm update --data "ONEGATE_HAPROXY_LB0_IP=<ONEAPP_VROUTER_ETH1_VIP0>"
+    onegate vm update --data "ONEGATE_HAPROXY_LB0_IP=<ONEAPP_VROUTER_ETH0_VIP0>"
     onegate vm update --data "ONEGATE_HAPROXY_LB0_PORT=5432"
     onegate vm update --data "ONEGATE_HAPROXY_LB0_SERVER_HOST=$LOCAL_IP"
     onegate vm update --data "ONEGATE_HAPROXY_LB0_SERVER_PORT=2345"
