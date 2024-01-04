@@ -34,14 +34,6 @@ resource "opennebula_image" "oneke" {
   path         = each.value
 }
 
-locals {
-  start_script = <<-SHELL
-    #!/bin/sh
-    set -e
-    ip link set dev eth0 up
-  SHELL
-}
-
 resource "opennebula_virtual_router_instance_template" "oneke" {
   name        = "vr_oneke"
   permissions = "642"
@@ -115,8 +107,6 @@ resource "opennebula_virtual_router_instance_template" "oneke" {
 
     ONEAPP_VNF_DHCP4_ENABLED    = "YES"
     ONEAPP_VNF_DHCP4_INTERFACES = "eth1"
-
-    START_SCRIPT_BASE64 = base64encode(local.start_script)
   }
 
   os {
