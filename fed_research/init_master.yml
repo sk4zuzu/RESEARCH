@@ -1,0 +1,8 @@
+---
+- debug: var=_msg
+  vars:
+    _msg:
+      INIT_MASTER:
+        zone: "{{ zone }}"
+        master: "{{ master }}"
+        leader: "{{ leader }}"

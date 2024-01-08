@@ -1,0 +1,47 @@
+---
+- hosts: frontend
+  tasks:
+    - set_fact:
+        # FIXME: This should be the VIP of the first federated frontend (if HA).
+        master: >-
+          {{ groups.frontend | first }}
+        # FIXME: This should be the VIP of the current federated frontend (if HA).
+        leader: >-
+          {{ groups[_group] | first }}
+        group: "{{ _group }}"
+      vars:
+        _group: >-
+          {{ group_names | map('regex_search', _pattern)
+                         | select
+                         | first
+                         | d('frontend') }}
+        _pattern: '^frontend\d+$'
+
+    # HANDLE FED
+
+    - include_tasks:
+        file: "{{ playbook_dir }}/init_master.yml"
+      when:
+        - inventory_hostname == master
+
+    # NOTE: Joining concurrently.
+    - include_tasks:
+        file: "{{ playbook_dir }}/join_slave.yml"
+      when:
+        - inventory_hostname != master
+        - inventory_hostname == leader
+
+    # HANDLE HA
+
+    # NOTE: Joining sequentially.
+    - include_tasks:
+        file: "{{ playbook_dir }}/join_follower.yml"
+        apply:
+          delegate_to: "{{ follower }}"
+      loop: "{{ _followers }}"
+      loop_control: { loop_var: follower }
+      vars:
+        _followers: >-
+          {{ groups[group] | difference([leader]) }}
+      when:
+        - inventory_hostname == leader

@@ -1,0 +1,8 @@
+---
+- debug: var=_msg
+  vars:
+    _msg:
+      JOIN_SLAVE:
+        zone: "{{ zone }}"
+        master: "{{ master }}"
+        leader: "{{ leader }}"

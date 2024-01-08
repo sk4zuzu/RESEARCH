@@ -1,0 +1,16 @@
+---
+version: '3'
+tasks:
+  default:
+    deps: [federated]
+    silent: true
+
+  federated:
+    cmds:
+      - ansible-playbook -vv -i inventory/federated.yml main.yml
+    silent: true
+
+  standalone:
+    cmds:
+      - ansible-playbook -vv -i inventory/standalone.yml main.yml
+    silent: true

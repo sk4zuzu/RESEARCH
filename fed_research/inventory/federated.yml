@@ -1,0 +1,32 @@
+---
+all:
+  vars:
+    ansible_user: ubuntu
+    zone: frontend0 # default
+
+frontend0:
+  hosts:
+    n1a1: { ansible_host: 10.2.50.10 }
+    n1b1: { ansible_host: 10.2.50.20 }
+  vars:
+    zone: frontend0
+
+frontend1:
+  hosts:
+    n1a2: { ansible_host: 10.2.50.11 }
+    n1b2: { ansible_host: 10.2.50.21 }
+  vars:
+    zone: frontend1
+
+frontend2:
+  hosts:
+    n1a3: { ansible_host: 10.2.50.12 }
+    n1b3: { ansible_host: 10.2.50.22 }
+  vars:
+    zone: frontend2
+
+frontend:
+  children:
+    ? frontend0
+    ? frontend1
+    ? frontend2
