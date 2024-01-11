@@ -107,6 +107,7 @@ resource "opennebula_virtual_router_instance_template" "oneke" {
 
     ONEAPP_VNF_DHCP4_ENABLED    = "YES"
     ONEAPP_VNF_DHCP4_INTERFACES = "eth1"
+    ONEAPP_VNF_DHCP4_ETH1       = "172.20.0.0/24:172.20.0.200-172.20.0.250"
   }
 
   os {
