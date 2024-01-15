@@ -44,6 +44,7 @@ resource "opennebula_virtual_network" "reservation" {
   reservation_ar_id    = 0
   reservation_first_ip = "172.20.0.123"
   reservation_auto_gw  = true
+  reservation_auto_dns = true
 }
 
 module "vrouter" {

@@ -75,7 +75,7 @@ resource "opennebula_virtual_router_instance_template" "oneke" {
 
     ONEAPP_VNF_LB_ENABLED         = "YES"
     ONEAPP_VNF_LB_ONEGATE_ENABLED = "YES"
-    ONEAPP_VNF_LB_INTERFACES      = "!eth1"
+    ONEAPP_VNF_LB_INTERFACES      = "!eth2"
 
     ONEAPP_VNF_LB0_IP        = "<ONEAPP_VROUTER_ETH0_VIP0>"
     ONEAPP_VNF_LB0_PORT      = "2345"
@@ -107,7 +107,9 @@ resource "opennebula_virtual_router_instance_template" "oneke" {
 
     ONEAPP_VNF_DHCP4_ENABLED    = "YES"
     ONEAPP_VNF_DHCP4_INTERFACES = "eth1"
-    ONEAPP_VNF_DHCP4_ETH1       = "172.20.0.0/24:172.20.0.200-172.20.0.250"
+    ONEAPP_VNF_DHCP4_GATEWAY    = "172.20.0.123"
+    ONEAPP_VNF_DHCP4_DNS        = "172.20.0.123"
+    #ONEAPP_VNF_DHCP4_ETH1       = "172.20.0.0/24:172.20.0.200-172.20.0.250"
   }
 
   os {
