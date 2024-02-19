@@ -12,7 +12,7 @@ variable "network_id" {
 }
 
 locals {
-  images       = { "cp_oneke" = "http://10.2.11.30/images/alpine317.qcow2" }
+  images       = { "cp_oneke" = "http://10.2.11.30/images/alpine318.qcow2" }
   start_script = <<-SHELL
     #!/bin/sh
     set -e
@@ -29,12 +29,12 @@ locals {
     EOT
     rc-update add nginx default
     # HAPROXY
-    onegate vm update --data "ONEGATE_HAPROXY_LB0_IP=<ONEAPP_VROUTER_ETH0_VIP0>"
+    onegate vm update --data "ONEGATE_HAPROXY_LB0_IP=<ETH0_VIP0>"
     onegate vm update --data "ONEGATE_HAPROXY_LB0_PORT=5432"
     onegate vm update --data "ONEGATE_HAPROXY_LB0_SERVER_HOST=$LOCAL_IP"
     onegate vm update --data "ONEGATE_HAPROXY_LB0_SERVER_PORT=2345"
     # LVS
-    onegate vm update --data "ONEGATE_LB0_IP=<ONEAPP_VROUTER_ETH0_VIP0>"
+    onegate vm update --data "ONEGATE_LB0_IP=<ETH0_EP0>"
     onegate vm update --data "ONEGATE_LB0_PORT=2345"
     onegate vm update --data "ONEGATE_LB0_SERVER_HOST=$LOCAL_IP"
     onegate vm update --data "ONEGATE_LB0_SERVER_PORT=2345"

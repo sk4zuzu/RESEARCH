@@ -12,7 +12,7 @@ variable "network_id" {
 }
 
 locals {
-  images = { "vr_sdnat" = "http://10.2.11.30/images/alpine317.qcow2" }
+  images = { "vr_sdnat" = "http://10.2.11.30/images/alpine318.qcow2" }
 }
 
 resource "opennebula_image" "sdnat" {
