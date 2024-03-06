@@ -67,6 +67,7 @@ resource "opennebula_template" "oneke" {
     BACKEND      = "YES"
 
     SSH_PUBLIC_KEY = "$USER[SSH_PUBLIC_KEY]"
+    PASSWORD       = "asd"
 
     START_SCRIPT_BASE64 = base64encode(local.start_script)
   }
