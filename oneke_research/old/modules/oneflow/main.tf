@@ -16,7 +16,7 @@ variable "nics" {
 locals {
   images = {
     "vr_oneke" = "http://10.2.11.30/images/service_VRouter.qcow2"
-    "cp_oneke" = "http://10.2.11.30/images/alpine317.qcow2"
+    "cp_oneke" = "http://10.2.11.30/images/alpine318.qcow2"
   }
 }
 
@@ -63,8 +63,21 @@ resource "opennebula_template" "vr_oneke" {
     ONEAPP_VNF_HAPROXY_ENABLED         = "YES"
     ONEAPP_VNF_HAPROXY_ONEGATE_ENABLED = "YES"
 
-    ONEAPP_VNF_HAPROXY_LB0_IP   = "<ETH0_IP0>"
+    ONEAPP_VNF_HAPROXY_LB0_IP   = "<ETH0_EP0>"
     ONEAPP_VNF_HAPROXY_LB0_PORT = "5432"
+
+    # DNS
+
+    ONEAPP_VNF_DNS_ENABLED    = "YES"
+    ONEAPP_VNF_DNS_INTERFACES = "eth1"
+
+    # DHCP4
+
+    ONEAPP_VNF_DHCP4_ENABLED    = "YES"
+    ONEAPP_VNF_DHCP4_INTERFACES = "eth1"
+
+    ONEAPP_VNF_DHCP4_GATEWAY = "<ETH1_EP0>"
+    ONEAPP_VNF_DHCP4_DNS     = "<ETH1_EP0>"
   }
 
   os {
@@ -100,7 +113,7 @@ locals {
     EOT
     rc-update add nginx default
     # HAPROXY
-    onegate vm update --data "ONEGATE_HAPROXY_LB0_IP=<ETH0_IP0>"
+    onegate vm update --data "ONEGATE_HAPROXY_LB0_IP=<ETH0_EP0>"
     onegate vm update --data "ONEGATE_HAPROXY_LB0_PORT=5432"
     onegate vm update --data "ONEGATE_HAPROXY_LB0_SERVER_HOST=$LOCAL_IP"
     onegate vm update --data "ONEGATE_HAPROXY_LB0_SERVER_PORT=2345"
@@ -123,6 +136,9 @@ resource "opennebula_template" "cp_oneke" {
     SSH_PUBLIC_KEY = "$USER[SSH_PUBLIC_KEY]"
 
     START_SCRIPT_BASE64 = base64encode(local.start_script)
+
+    SERVICE_ID = "$SERVICE_ID"
+    ASD        = "$ASD"
   }
 
   os {
@@ -172,6 +188,7 @@ locals {
           NIC = [
             NAME = "NIC0",
             NETWORK_ID = "${var.nics.eth1.network_id}" ]
+          ASD = "$${vr_oneke.template.context.ETH1_IP}"
   YAML
 
   svc_template = yamldecode(local.svc_yaml)
