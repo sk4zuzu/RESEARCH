@@ -133,7 +133,7 @@ resource "opennebula_virtual_machine" "machines" {
     TOKEN        = "NO"
     REPORT_READY = "NO"
 
-    ETH0_METHOD = "skip"
+    ETH0_USER_MANAGED = "YES"
 
     SSH_PUBLIC_KEY = "$USER[SSH_PUBLIC_KEY]"
     PASSWORD       = "asd"
