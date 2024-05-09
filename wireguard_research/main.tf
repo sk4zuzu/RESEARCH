@@ -15,38 +15,10 @@ provider "opennebula" {
 }
 
 locals {
-  files = {
-    "onewg.yml" = {
-      path    = "/var/tmp/onewg.yml"
-      content = <<-YAML
-        ---
-        wg0:
-          endpoint: 10.2.11.86:51820
-          peer_subnet: 192.168.144.0/24
-          server_port: 51820
-          private_key: iIkUOhFQCFjZbPEkhFgQR2Hv0FfjejSX4Vv686II62E=
-          interface_out: eth0
-          peers:
-            alice:
-              address: 192.168.144.2/24
-              preshared_key: 5/OipxpAqN8UXpaILlWhaSQ/np8DcxIul+iRXiIq8DI=
-              private_key: iKVZgfL4BtNtWEdszoMLneB2AruyBPvbhBam7Fnzuks=
-              allowed_ips:
-              - 0.0.0.0/0
-            chad:
-              address: 192.168.144.4/24
-              preshared_key: GUrRMZCLqb/LJWxvFFPuS5coTxsJsJnqtIvv+XwVbgw=
-              public_key: 8I/tnjP5lrnLqPny+Brp3p8qV6kWPQMMM2NY3yXnNEw=
-              allowed_ips:
-              - 0.0.0.0/0
-            bob:
-              address: 192.168.144.3/24
-              preshared_key: kqMcuMd81Dfnw1VNsgctOwntBulo++FxV5TF6Nh6Zvs=
-              private_key: eIB2AQHrM5UGzb7gO8D8goqgLpX6irKqoluzh4gt6nE=
-              allowed_ips:
-              - 0.0.0.0/0
-      YAML
-    }
+  ssh_opts = "-o ForwardAgent=yes -o StrictHostKeyChecking=no -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile=/dev/null"
+  vips = {
+    service = "10.2.11.86"
+    private = "172.20.0.86"
   }
   distros = {
     alpine318 = {
@@ -59,14 +31,12 @@ locals {
   instances = {
     wg = {
       wg1 = {
-        distro       = "service_VRouter"
         start_script = <<-BASH
           set -e
           apk --no-cache add mc ripgrep vim
         BASH
       }
       wg2 = {
-        distro       = "service_VRouter"
         start_script = <<-BASH
           set -e
           apk --no-cache add mc ripgrep vim
@@ -75,29 +45,16 @@ locals {
     }
     vm = {
       vm1 = {
-        distro       = "alpine318"
         network      = "service"
+        gateway      = null
         start_script = <<-BASH
           set -e
           apk --no-cache add mc ripgrep wireguard-tools-wg-quick vim
-
-          install -o 0 -g 0 -m u=rw,go= -D /dev/fd/0 /etc/wireguard/wg0.conf <<'INI'
-          [Interface]
-          Address    = 192.168.144.4/24
-          ListenPort = 51820
-          PrivateKey = 8NyK+uwCK0Um66UfrpC3psg3omActcCy2l15bdb2xEE=
-
-          [Peer]
-          Endpoint     = 10.2.11.86:51820
-          PublicKey    = GYi0NOfvIJiWKQUhvcemcAihYSoLT4o6NpUMWsy8Nl0=
-          PresharedKey = GUrRMZCLqb/LJWxvFFPuS5coTxsJsJnqtIvv+XwVbgw=
-          AllowedIPs   = 0.0.0.0/0
-          INI
         BASH
       }
       vm2 = {
-        distro       = "alpine318"
         network      = "private"
+        gateway      = local.vips.private
         start_script = <<-BASH
           set -e
           apk --no-cache add mc ripgrep vim
@@ -123,37 +80,6 @@ resource "opennebula_image" "images" {
   path         = each.value.image_path
 }
 
-resource "terraform_data" "files" {
-  for_each = local.files
-
-  triggers_replace = [md5(each.value.content)]
-
-  connection {
-    type  = "ssh"
-    user  = "ubuntu"
-    host  = "10.2.11.40"
-    agent = true
-  }
-
-  provisioner "file" {
-    destination = each.value.path
-    content     = each.value.content
-  }
-}
-
-resource "opennebula_image" "files" {
-  lifecycle {
-    replace_triggered_by = [terraform_data.files]
-  }
-
-  for_each     = local.files
-  name         = each.key
-  datastore_id = "2"
-  type         = "CONTEXT"
-  permissions  = "642"
-  path         = each.value.path
-}
-
 resource "opennebula_virtual_router_instance_template" "wg" {
   name        = "wg"
   permissions = "642"
@@ -173,7 +99,7 @@ resource "opennebula_virtual_router_instance_template" "wg" {
   context = {
     SET_HOSTNAME = "$NAME"
     NETWORK      = "YES"
-    TOKEN        = "NO"
+    TOKEN        = "YES"
     REPORT_READY = "NO"
 
     SSH_PUBLIC_KEY = "$USER[SSH_PUBLIC_KEY]"
@@ -202,19 +128,19 @@ resource "opennebula_virtual_router_instance" "wg" {
   name     = each.key
 
   context = {
-    FILES_DS = join(" ", [
-      for k, _ in local.files : "$FILE[IMAGE_ID=\"${opennebula_image.files[k].id}\"]"
-    ])
-
     START_SCRIPT_BASE64 = base64encode(each.value.start_script)
 
-    ONEAPP_VROUTER_ETH0_VIP0 = "10.2.11.86"
+    ONEAPP_VROUTER_ETH0_VIP0 = local.vips.service
+    ONEAPP_VROUTER_ETH1_VIP0 = local.vips.private
 
     ONEAPP_VNF_NAT4_ENABLED        = "YES"
     ONEAPP_VNF_NAT4_INTERFACES_OUT = "eth0"
 
-    ONEAPP_VNF_WG_ENABLED        = "YES"
-    ONEAPP_VNF_WG_INTERFACES_OUT = "eth0"
+    ONEAPP_VNF_DNS_ENABLED = "YES"
+
+    ONEAPP_VNF_WG_ENABLED       = "YES"
+    ONEAPP_VNF_WG_INTERFACE_OUT = "eth0"
+    ONEAPP_VNF_WG_INTERFACE_IN  = "eth1"
   }
 
   virtual_router_id = opennebula_virtual_router.wg.id
@@ -234,14 +160,8 @@ resource "opennebula_virtual_router_nic" "eth1" {
   network_id        = data.opennebula_virtual_network.vnets["private"].id
 }
 
-resource "opennebula_virtual_machine" "vm" {
-  depends_on = [
-    opennebula_virtual_router_nic.eth0,
-    opennebula_virtual_router_nic.eth1,
-  ]
-
-  for_each    = local.instances.vm
-  name        = each.key
+resource "opennebula_template" "vm" {
+  name        = "vm"
   permissions = "642"
   memory      = "1024"
 
@@ -264,21 +184,74 @@ resource "opennebula_virtual_machine" "vm" {
 
     SSH_PUBLIC_KEY = "$USER[SSH_PUBLIC_KEY]"
     PASSWORD       = "asd"
-
-    START_SCRIPT_BASE64 = base64encode(each.value.start_script)
   }
 
   disk {
-    image_id = opennebula_image.images[each.value.distro].id
-  }
-
-  nic {
-    network_id = data.opennebula_virtual_network.vnets[each.value.network].id
+    image_id = opennebula_image.images["alpine318"].id
   }
 
   graphics {
     keymap = "en-us"
     listen = "0.0.0.0"
     type   = "VNC"
+  }
+}
+
+resource "opennebula_virtual_machine" "vm1" {
+  depends_on = [
+    opennebula_virtual_router_nic.eth0,
+    opennebula_virtual_router_nic.eth1,
+  ]
+
+  name        = "vm1"
+  template_id = opennebula_template.vm.id
+
+  context = {
+    START_SCRIPT_BASE64 = base64encode(local.instances.vm.vm1.start_script)
+  }
+
+  template_section {
+    name     = "NIC"
+    elements = {
+      NETWORK_ID = data.opennebula_virtual_network.vnets[local.instances.vm.vm1.network].id
+    }
+  }
+}
+
+resource "opennebula_virtual_machine" "vm2" {
+  depends_on = [
+    opennebula_virtual_router_nic.eth0,
+    opennebula_virtual_router_nic.eth1,
+  ]
+
+  name        = "vm2"
+  template_id = opennebula_template.vm.id
+
+  context = {
+    START_SCRIPT_BASE64 = base64encode(local.instances.vm.vm2.start_script)
+  }
+
+  template_section {
+    name     = "NIC"
+    elements = {
+      NETWORK_ID = data.opennebula_virtual_network.vnets[local.instances.vm.vm2.network].id
+      GATEWAY    = local.instances.vm.vm2.gateway
+    }
+  }
+}
+
+resource "terraform_data" "wg" {
+  depends_on = [
+    opennebula_virtual_machine.vm1,
+    opennebula_virtual_machine.vm2,
+  ]
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<-EXPRESSION
+      sleep 30; \
+      ssh ${local.ssh_opts} 'root@${local.vips.service}' "onegate vm show -j | jq -r '.VM.USER_TEMPLATE.ONEGATE_VNF_WG_PEER0|@base64d'" \
+      | ssh ${local.ssh_opts} 'root@${opennebula_virtual_machine.vm1.template_nic[0].computed_ip}' 'install -m u=rw,go= -D /dev/fd/0 /etc/wireguard/wg0.conf && wg-quick up wg0'
+    EXPRESSION
   }
 }
