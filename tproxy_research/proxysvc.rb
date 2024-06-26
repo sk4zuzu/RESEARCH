@@ -8,7 +8,7 @@ require 'socket'
 
 class ProxySvc
 
-    def initialize(addr = '169.254.16.9', port = 7777, daddr = '10.2.51.21', dport = 5030)
+    def initialize(addr = '127.0.0.1', port = 7777, daddr = '10.2.51.21', dport = 5030)
         @endpoint = Async::IO::Endpoint.socket setup_socket(addr, port)
         @daddr, @dport = daddr, dport
     end

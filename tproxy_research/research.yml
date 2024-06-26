@@ -1,39 +1,35 @@
 ---
-- hosts: gateway:service:gateway:hypervisor:guest
+- hosts: 'gateway:service:hypervisor:guest'
   gather_facts: true
-  module_defaults: &module_defaults
-    shell: { executable: /bin/bash }
   tasks: []
 
-- hosts: gateway
-  module_defaults: *module_defaults
+- hosts: 'gateway'
   tasks:
     - apt:
         name: [iproute2, iptables]
         update_cache: true
 
     - shell:
-        cmd: |
-          {{ _args | iptables_cmd(table='nat', chain='POSTROUTING') }}
-      vars:
-        _args: >-
-          -o eth0 -j MASQUERADE
+        cmd: "{{ item.cmd }}"
+      loop:
+        - cmd: >-
+            iptables-nft -t nat -A POSTROUTING
+            -o eth0
+            -j MASQUERADE
 
-- hosts: service:hypervisor:guest
+- hosts: 'service:hypervisor:guest'
   serial: 2
-  module_defaults: *module_defaults
   tasks:
     - apt:
-        name: [gcc, iproute2, iptables, make, ruby, ruby-dev]
+        name: [ebtables, gcc, iproute2, iptables, make, ruby, ruby-dev]
         update_cache: true
 
     - gem:
         name: async-io
-        version: 1.32.1
+        version: 1.42.1
         user_install: false
 
-- hosts: service
-  module_defaults: *module_defaults
+- hosts: 'service'
   tasks:
     - copy:
         dest: /echosvc.rb
@@ -54,37 +50,43 @@
         daemon_reload: true
       when: (copy_echosvc_rb is changed) or (template_echosvc_service is changed)
 
-- hosts: hypervisor
-  module_defaults: *module_defaults
+- hosts: 'hypervisor'
   tasks:
     - shell:
-        cmd: |
-          {{ _args | iptables_cmd(table='mangle', chain='PREROUTING') }}
-      vars:
-        _args: >-
-          -p tcp -m tcp --dport 5030 -j TPROXY
-          --on-ip 169.254.16.9
-          --on-port 7777
-          --tproxy-mark 0x13a6/0xffffffff
-
-    - shell:
-        cmd: |
-          {{ _args | ip_rule_replace_cmd }}
-      vars:
-        _args: >-
-          fwmark 0x13a6/0xffffffff lookup 5030
-
-    - shell:
-        cmd: |
-          ip route replace local 0.0.0.0/0 dev lo table 5030
-
-    - shell:
-        cmd: |
-          ip address flush br1
-
-    - shell:
-        cmd: |
-          ip neighbour add proxy 169.254.16.9 dev br1
+        cmd: "{{ item.cmd }}"
+      loop:
+        # remove ip address from the bridge
+        - cmd: >-
+            ip address flush br1
+        # intercept 169.254.16.9:5030-destined packets and redirect them to the local
+        # machine so they can be further processed in iptables
+        # NOTE: this removes the requirement for adding route for 169.254.16.9 in guests
+        - cmd: >-
+            ebtables-nft -t nat -A PREROUTING
+            --logical-in br1
+            -p ipv4
+            --ip-proto tcp
+            --ip-dst 169.254.16.9
+            --ip-dport 5030
+            -j redirect
+            --redirect-target ACCEPT
+        # NOTE: this is problematic if we have multiple distinct bridges with identical subnets
+        - cmd: >-
+            ip route add 172.20.100.0/24 dev br1
+        # enable the usual TPROXY-like processing (redirect to 127.0.0.1:7777)
+        - cmd: >-
+            iptables-nft -t mangle -A PREROUTING
+            -p tcp -m tcp
+            -d 169.254.16.9
+            --dport 5030
+            -j TPROXY
+            --on-ip 127.0.0.1
+            --on-port 7777
+            --tproxy-mark 0x13a6/0xffffffff
+        - cmd: >-
+            ip rule add fwmark 0x13a6/0xffffffff lookup 5030
+        - cmd: >-
+            ip route add local 0.0.0.0/0 dev lo table 5030
 
     - copy:
         dest: /proxysvc.rb
@@ -105,13 +107,8 @@
         daemon_reload: true
       when: (copy_proxysvc_rb is changed) or (template_proxysvc_service is changed)
 
-- hosts: guest
-  module_defaults: *module_defaults
+- hosts: 'guest'
   tasks:
-    - shell:
-        cmd: |
-          ip route replace 169.254.16.9/32 dev eth0
-
     - copy:
         dest: /beaconsvc.rb
         mode: u=rw,go=r

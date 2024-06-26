@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 def iptables_cmd(args, table = 'nat', command = '-I', chain = 'POSTROUTING'):
-    _check = f"iptables -t {table} -C {chain} {args}"
-    _apply = f"iptables -t {table} {command} {chain} {args}"
+    _check = f"iptables-nft -t {table} -C {chain} {args}"
+    _apply = f"iptables-nft -t {table} {command} {chain} {args}"
     return f"{_check} || {_apply}"
 
 def ip_rule_replace_cmd(args):
