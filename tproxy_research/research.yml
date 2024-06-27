@@ -70,9 +70,6 @@
             --ip-dport 5030
             -j redirect
             --redirect-target ACCEPT
-        # NOTE: this is problematic if we have multiple distinct bridges with identical subnets
-        - cmd: >-
-            ip route add 172.20.100.0/24 dev br1
         # enable the usual TPROXY-like processing (redirect to 127.0.0.1:7777)
         - cmd: >-
             iptables-nft -t mangle -A PREROUTING
@@ -87,6 +84,13 @@
             ip rule add fwmark 0x13a6/0xffffffff lookup 5030
         - cmd: >-
             ip route add local 0.0.0.0/0 dev lo table 5030
+        # routing rules to handle responses
+        - cmd: >-
+            ip rule add fwmark 0x21ee/0xffffffff lookup 8686
+        - cmd: >-
+            ip route add default dev br1 table 8686
+        - cmd: >-
+            for NIC in all br1; do echo 0 > /proc/sys/net/ipv4/conf/$NIC/rp_filter; done
 
     - copy:
         dest: /proxysvc.rb

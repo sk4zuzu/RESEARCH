@@ -8,7 +8,7 @@ require 'socket'
 
 class ProxySvc
 
-    def initialize(addr = '127.0.0.1', port = 7777, daddr = '10.2.51.21', dport = 5030)
+    def initialize(addr = '127.0.0.1', port = 7777, daddr = '10.2.51.21', dport = 3640)
         @endpoint = Async::IO::Endpoint.socket setup_socket(addr, port)
         @daddr, @dport = daddr, dport
     end
@@ -41,6 +41,8 @@ class ProxySvc
         sock = Socket.new Socket::AF_INET, Socket::SOCK_STREAM, 0
 
         sock.setsockopt Socket::SOL_SOCKET, Socket::SO_REUSEADDR, 1
+        sock.setsockopt Socket::SOL_SOCKET, Socket::SO_MARK, 0x21ee
+
         sock.setsockopt Socket::SOL_IP, Socket::IP_TRANSPARENT, 1
 
         Console.logger.debug(self) {"Binding to #{Addrinfo.tcp(addr, port).inspect}"}

@@ -8,7 +8,7 @@ require 'socket'
 
 class EchoSvc
 
-    def initialize(addr = '0.0.0.0', port = 5030, listen = Socket::SOMAXCONN)
+    def initialize(addr = '0.0.0.0', port = 3640, listen = Socket::SOMAXCONN)
         @endpoint = Async::IO::Endpoint.tcp(addr, port)
         @listen = listen
     end
