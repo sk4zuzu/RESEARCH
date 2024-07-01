@@ -6,10 +6,10 @@ require 'async/io'
 require 'async/io/stream'
 require 'socket'
 
-class ProxySvc
+class ProxySock
 
-    def initialize(addr = '127.0.0.1', port = 7777, daddr = '10.2.51.21', dport = 3640)
-        @endpoint = Async::IO::Endpoint.socket setup_socket(addr, port)
+    def initialize(port, daddr, dport)
+        @endpoint = Async::IO::Endpoint.socket setup_socket('127.0.0.1', port, port)
         @daddr, @dport = daddr, dport
     end
 
@@ -37,11 +37,11 @@ class ProxySvc
 
     private
 
-    def setup_socket(addr, port, listen = Socket::SOMAXCONN)
+    def setup_socket(addr, port, mark, listen = Socket::SOMAXCONN)
         sock = Socket.new Socket::AF_INET, Socket::SOCK_STREAM, 0
 
         sock.setsockopt Socket::SOL_SOCKET, Socket::SO_REUSEADDR, 1
-        sock.setsockopt Socket::SOL_SOCKET, Socket::SO_MARK, 0x21ee
+        sock.setsockopt Socket::SOL_SOCKET, Socket::SO_MARK, mark
 
         sock.setsockopt Socket::SOL_IP, Socket::IP_TRANSPARENT, 1
 
@@ -75,7 +75,29 @@ class ProxySvc
 
 end
 
+class ProxySvc
+
+    def initialize
+        @socks = []
+    end
+
+    def add(port, daddr, dport)
+        @socks << ProxySock.new(port, daddr, dport)
+    end
+
+    def run
+        Async do
+            @socks.each do |sock|
+                sock.run
+            end
+        end
+    end
+
+end
+
 if caller.empty?
     service = ProxySvc.new
+    service.add 7777, '10.2.51.21', 3640
+    service.add 4321, '10.2.51.21', 3640
     service.run
 end

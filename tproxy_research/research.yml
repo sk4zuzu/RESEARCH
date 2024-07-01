@@ -58,6 +58,12 @@
         # remove ip address from the bridge
         - cmd: >-
             ip address flush br1
+        - cmd: >-
+            for NIC in all br1; do echo 0 > /proc/sys/net/ipv4/conf/$NIC/rp_filter; done
+
+    - shell:
+        cmd: "{{ item.cmd }}"
+      loop:
         # intercept 169.254.16.9:5030-destined packets and redirect them to the local
         # machine so they can be further processed in iptables
         # NOTE: this removes the requirement for adding route for 169.254.16.9 in guests
@@ -79,18 +85,51 @@
             -j TPROXY
             --on-ip 127.0.0.1
             --on-port 7777
-            --tproxy-mark 0x13a6/0xffffffff
+            --tproxy-mark 5030
         - cmd: >-
-            ip rule add fwmark 0x13a6/0xffffffff lookup 5030
+            ip rule add fwmark 5030 lookup 5030
         - cmd: >-
             ip route add local 0.0.0.0/0 dev lo table 5030
         # routing rules to handle responses
         - cmd: >-
-            ip rule add fwmark 0x21ee/0xffffffff lookup 8686
+            ip rule add fwmark 7777 lookup 7777
         - cmd: >-
-            ip route add default dev br1 table 8686
+            ip route add default dev br1 table 7777
+
+    - shell:
+        cmd: "{{ item.cmd }}"
+      loop:
+        # intercept 169.254.16.9:1234-destined packets and redirect them to the local
+        # machine so they can be further processed in iptables
+        # NOTE: this removes the requirement for adding route for 169.254.16.9 in guests
         - cmd: >-
-            for NIC in all br1; do echo 0 > /proc/sys/net/ipv4/conf/$NIC/rp_filter; done
+            ebtables-nft -t nat -A PREROUTING
+            --logical-in br1
+            -p ipv4
+            --ip-proto tcp
+            --ip-dst 169.254.16.9
+            --ip-dport 1234
+            -j redirect
+            --redirect-target ACCEPT
+        # enable the usual TPROXY-like processing (redirect to 127.0.0.1:4321)
+        - cmd: >-
+            iptables-nft -t mangle -A PREROUTING
+            -p tcp -m tcp
+            -d 169.254.16.9
+            --dport 1234
+            -j TPROXY
+            --on-ip 127.0.0.1
+            --on-port 4321
+            --tproxy-mark 1234
+        - cmd: >-
+            ip rule add fwmark 1234 lookup 1234
+        - cmd: >-
+            ip route add local 0.0.0.0/0 dev lo table 1234
+        # routing rules to handle responses
+        - cmd: >-
+            ip rule add fwmark 4321 lookup 4321
+        - cmd: >-
+            ip route add default dev br1 table 4321
 
     - copy:
         dest: /proxysvc.rb
