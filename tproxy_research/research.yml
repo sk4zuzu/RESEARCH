@@ -10,10 +10,11 @@
         update_cache: true
 
     - shell:
-        cmd: "{{ item.cmd }}"
+        cmd: "{{ [item.args] | map(item.func, **item.opts) | first }}"
       loop:
-        - cmd: >-
-            iptables-nft -t nat -A POSTROUTING
+        - func: iptables_cmd
+          opts: { table: nat, chain: POSTROUTING }
+          args: >-
             -o eth0
             -j MASQUERADE
 
@@ -21,7 +22,7 @@
   serial: 2
   tasks:
     - apt:
-        name: [ebtables, gcc, iproute2, iptables, make, ruby, ruby-dev]
+        name: [gcc, iproute2, iptables, make, nftables, ruby, ruby-dev]
         update_cache: true
 
     - gem:
@@ -53,32 +54,65 @@
 - hosts: 'hypervisor'
   tasks:
     - shell:
-        cmd: "{{ item.cmd }}"
+        cmd: "{{ [item.args] | map(item.func, **item.opts) | first }}"
       loop:
         # remove ip address from the bridge
-        - cmd: >-
+        - func: identity
+          opts: {}
+          args: >-
             ip address flush br1
-        - cmd: >-
+        - func: identity
+          opts: {}
+          args: >-
             for NIC in all br1; do echo 0 > /proc/sys/net/ipv4/conf/$NIC/rp_filter; done
-
-    - shell:
-        cmd: "{{ item.cmd }}"
-      loop:
         # intercept 169.254.16.9:5030-destined packets and redirect them to the local
         # machine so they can be further processed in iptables
         # NOTE: this removes the requirement for adding route for 169.254.16.9 in guests
-        - cmd: >-
-            ebtables-nft -t nat -A PREROUTING
-            --logical-in br1
-            -p ipv4
-            --ip-proto tcp
-            --ip-dst 169.254.16.9
-            --ip-dport 5030
-            -j redirect
-            --redirect-target ACCEPT
+        - func: nft_cmd
+          opts: {}
+          args: >-
+            add table bridge one_tproxy;
+            add chain bridge one_tproxy br1 { type filter hook prerouting priority dstnat; policy accept; };
+            add set bridge one_tproxy br1_dports { typeof tcp dport; };
+            add element bridge one_tproxy br1_dports { 1234, 5030 };
+            flush chain bridge one_tproxy br1;
+            add rule bridge one_tproxy br1 meta ibrname "br1" ip daddr 169.254.16.9 tcp dport @br1_dports counter meta pkttype set host ether daddr set {{ ansible_facts.br1.macaddress }} accept;
+
+    - shell:
+        cmd: "{{ [item.args] | map(item.func, **item.opts) | first }}"
+      loop:
+        # routing rules to handle responses
+        - func: ip_route_replace_cmd
+          opts: {}
+          args: >-
+            default
+            dev br1
+            table 7777
+        - func: ip_rule_replace_cmd
+          opts: {}
+          args: >-
+            fwmark 7777
+            lookup 7777
+        # routing rules to handle responses
+        - func: ip_route_replace_cmd
+          opts: {}
+          args: >-
+            default
+            dev br1
+            table 4321
+        - func: ip_rule_replace_cmd
+          opts: {}
+          args: >-
+            fwmark 4321
+            lookup 4321
+
+    - shell:
+        cmd: "{{ [item.args] | map(item.func, **item.opts) | first }}"
+      loop:
         # enable the usual TPROXY-like processing (redirect to 127.0.0.1:7777)
-        - cmd: >-
-            iptables-nft -t mangle -A PREROUTING
+        - func: iptables_cmd
+          opts: { table: mangle, chain: PREROUTING }
+          args: >-
             -p tcp -m tcp
             -d 169.254.16.9
             --dport 5030
@@ -86,34 +120,21 @@
             --on-ip 127.0.0.1
             --on-port 7777
             --tproxy-mark 5030
-        - cmd: >-
-            ip rule add fwmark 5030 lookup 5030
-        - cmd: >-
-            ip route add local 0.0.0.0/0 dev lo table 5030
-        # routing rules to handle responses
-        - cmd: >-
-            ip rule add fwmark 7777 lookup 7777
-        - cmd: >-
-            ip route add default dev br1 table 7777
-
-    - shell:
-        cmd: "{{ item.cmd }}"
-      loop:
-        # intercept 169.254.16.9:1234-destined packets and redirect them to the local
-        # machine so they can be further processed in iptables
-        # NOTE: this removes the requirement for adding route for 169.254.16.9 in guests
-        - cmd: >-
-            ebtables-nft -t nat -A PREROUTING
-            --logical-in br1
-            -p ipv4
-            --ip-proto tcp
-            --ip-dst 169.254.16.9
-            --ip-dport 1234
-            -j redirect
-            --redirect-target ACCEPT
+        - func: ip_route_replace_cmd
+          opts: {}
+          args: >-
+            local 0/0
+            dev lo
+            table 5030
+        - func: ip_rule_replace_cmd
+          opts: {}
+          args: >-
+            fwmark 5030
+            lookup 5030
         # enable the usual TPROXY-like processing (redirect to 127.0.0.1:4321)
-        - cmd: >-
-            iptables-nft -t mangle -A PREROUTING
+        - func: iptables_cmd
+          opts: { table: mangle, chain: PREROUTING }
+          args: >-
             -p tcp -m tcp
             -d 169.254.16.9
             --dport 1234
@@ -121,15 +142,17 @@
             --on-ip 127.0.0.1
             --on-port 4321
             --tproxy-mark 1234
-        - cmd: >-
-            ip rule add fwmark 1234 lookup 1234
-        - cmd: >-
-            ip route add local 0.0.0.0/0 dev lo table 1234
-        # routing rules to handle responses
-        - cmd: >-
-            ip rule add fwmark 4321 lookup 4321
-        - cmd: >-
-            ip route add default dev br1 table 4321
+        - func: ip_route_replace_cmd
+          opts: {}
+          args: >-
+            local 0/0
+            dev lo
+            table 1234
+        - func: ip_rule_replace_cmd
+          opts: {}
+          args: >-
+            fwmark 1234
+            lookup 1234
 
     - copy:
         dest: /proxysvc.rb
