@@ -1,103 +1,149 @@
 #!/usr/bin/env ruby
 
-$stdout.sync = true
-
 require 'async/io'
 require 'async/io/stream'
+require 'console'
+require 'daemons'
+require 'resolv'
 require 'socket'
 
-class ProxySock
+$options = {}
+$logger  = nil
 
-    def initialize(port, daddr, dport)
-        @endpoint = Async::IO::Endpoint.socket setup_socket('127.0.0.1', port, port)
-        @daddr, @dport = daddr, dport
-    end
+module TProxy
 
-    def run
-        Async do |task|
-            @endpoint.accept do |peer|
-                Console.logger.debug(self) {"Accepting #{peer.remote_address.inspect}"}
+    class Single
+        def initialize(port, daddr, dport)
+            @endpoint = Async::IO::Endpoint.socket setup_socket('127.0.0.1', port, port)
+            @daddr, @dport = daddr, dport
+        end
 
-                dendpoint = Async::IO::Endpoint.tcp(@daddr, @dport)
+        def run
+            Async do |task|
+                @endpoint.accept do |peer|
+                    $logger.debug(self) {"Accepting #{peer.remote_address.inspect}"}
 
-                dendpoint.connect do |dpeer|
-                    stream, dstream = Async::IO::Stream.new(peer), Async::IO::Stream.new(dpeer)
+                    dendpoint = Async::IO::Endpoint.tcp(@daddr, @dport)
 
-                    glue_streams(stream, dstream, task).wait
+                    dendpoint.connect do |dpeer|
+                        stream, dstream = Async::IO::Stream.new(peer), Async::IO::Stream.new(dpeer)
 
-                    Console.logger.debug(self) {"Closing #{dpeer.remote_address.inspect}"}
-                    dpeer.close
+                        glue_streams(stream, dstream, task).wait
+
+                        $logger.debug(self) {"Closing #{dpeer.remote_address.inspect}"}
+                        dpeer.close
+                    end
+
+                    $logger.debug(self) {"Closing #{peer.remote_address.inspect}"}
+                    peer.close
                 end
+            end
+        end
 
-                Console.logger.debug(self) {"Closing #{peer.remote_address.inspect}"}
-                peer.close
+        private
+
+        def setup_socket(addr, port, mark, listen = Socket::SOMAXCONN)
+            sock = Socket.new Socket::AF_INET, Socket::SOCK_STREAM, 0
+
+            sock.setsockopt Socket::SOL_SOCKET, Socket::SO_REUSEADDR, 1
+            sock.setsockopt Socket::SOL_SOCKET, Socket::SO_MARK, mark
+
+            sock.setsockopt Socket::SOL_IP, Socket::IP_TRANSPARENT, 1
+
+            $logger.debug(self) {"Binding to #{Addrinfo.tcp(addr, port).inspect}"}
+
+            sock.bind Socket.pack_sockaddr_in(port, addr)
+            sock.listen listen
+            sock
+        end
+
+        def glue_streams(stream1, stream2, task)
+            Async do
+                concurrent = []
+                concurrent << task.async do
+                    while chunk = stream1.read_partial
+                        $logger.debug(self) {"REQ: `#{chunk}`"}
+                        stream2.write chunk
+                        stream2.flush
+                    end
+                end
+                concurrent << task.async do
+                    while chunk = stream2.read_partial
+                        $logger.debug(self) {"RSP: `#{chunk}`"}
+                        stream1.write chunk
+                        stream1.flush
+                    end
+                end
+                concurrent.each(&:wait)
             end
         end
     end
 
-    private
+    class Multi
+        def initialize
+            @proxy = []
+        end
 
-    def setup_socket(addr, port, mark, listen = Socket::SOMAXCONN)
-        sock = Socket.new Socket::AF_INET, Socket::SOCK_STREAM, 0
+        def add(port, daddr, dport)
+            @proxy << Single.new(port, daddr, dport)
+        end
 
-        sock.setsockopt Socket::SOL_SOCKET, Socket::SO_REUSEADDR, 1
-        sock.setsockopt Socket::SOL_SOCKET, Socket::SO_MARK, mark
-
-        sock.setsockopt Socket::SOL_IP, Socket::IP_TRANSPARENT, 1
-
-        Console.logger.debug(self) {"Binding to #{Addrinfo.tcp(addr, port).inspect}"}
-
-        sock.bind Socket.pack_sockaddr_in(port, addr)
-        sock.listen listen
-        sock
-    end
-
-    def glue_streams(stream1, stream2, task)
-        Async do
-            concurrent = []
-            concurrent << task.async do
-                while chunk = stream1.read_partial
-                    Console.logger.debug(self) {"REQ: `#{chunk}`"}
-                    stream2.write chunk
-                    stream2.flush
+        def run
+            Async do
+                @proxy.each do |service|
+                    service.run
                 end
             end
-            concurrent << task.async do
-                while chunk = stream2.read_partial
-                    Console.logger.debug(self) {"RSP: `#{chunk}`"}
-                    stream1.write chunk
-                    stream1.flush
-                end
-            end
-            concurrent.each(&:wait)
         end
     end
 
 end
 
-class ProxySvc
+module Daemons
 
-    def initialize
-        @socks = []
-    end
+    class Controller
+        def setup_options
+            $options[:brdev] = @app_part[0]
 
-    def add(port, daddr, dport)
-        @socks << ProxySock.new(port, daddr, dport)
-    end
+            raise StandardError, 'Bridge name must be provided.' \
+                if $options[:brdev].nil?
 
-    def run
-        Async do
-            @socks.each do |sock|
-                sock.run
+            $options[:proxy] = @app_part[1..(-1)].to_a.each_with_object([]) do |triple, acc|
+                bport, daddr, dport = triple.split(%[:])
+
+                next if bport.nil? || daddr.nil? || dport.nil?
+
+                acc << {
+                    bport: Integer(bport),
+                    daddr: Addrinfo.ip(daddr).ip_address,
+                    dport: Integer(dport)
+                }
             end
+
+            @options[:app_name] = @app_name = "one_tproxy_#{$options[:brdev]}"
+            @options[:dir]      = '/'
         end
     end
 
 end
 
-if caller.empty?
-    service = ProxySvc.new
-    service.add 7777, '10.2.51.21', 3640
-    service.add 4321, '10.2.51.21', 3640
+Daemons.run_proc(nil) do
+    CustomLogger = Console::Filter[debug: 0, info: 1, warn: 2, error: 3]
+    logfile      = File.open "/one_tproxy_#{$options[:brdev]}.json", 'a'
+    logfile.sync = true
+    serialized   = Console::Output::Serialized.new logfile
+    $logger      = CustomLogger.new serialized, level: 0
+
+    if $options[:proxy].empty?
+        $logger.error(self) {'At least one bport:daddr:dport tuple must be provided.'}
+        exit(-1)
+    end
+
+    service = TProxy::Multi.new
+
+    $options[:proxy].each do |item|
+        service.add item[:bport], item[:daddr], item[:dport]
+    end
+
     service.run
 end

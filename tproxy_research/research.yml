@@ -26,9 +26,13 @@
         update_cache: true
 
     - gem:
-        name: async-io
-        version: 1.42.1
+        name: "{{ item.name }}"
+        version: "{{ item.version | d(omit) }}"
         user_install: false
+      loop:
+        - name: async-io
+          version: 1.42.1
+        - name: daemons
 
 - hosts: 'service'
   tasks:
@@ -158,20 +162,10 @@
         dest: /proxysvc.rb
         mode: u=rw,go=r
         src: "{{ playbook_dir }}/proxysvc.rb"
-      register: copy_proxysvc_rb
 
-    - template:
-        dest: /etc/systemd/system/proxysvc.service
-        mode: u=rw,go=r
-        src: "{{ playbook_dir }}/proxysvc.service"
-      register: template_proxysvc_service
-
-    - systemd:
-        name: proxysvc.service
-        state: restarted
-        enabled: true
-        daemon_reload: true
-      when: (copy_proxysvc_rb is changed) or (template_proxysvc_service is changed)
+    - shell:
+        cmd: >-
+          ruby /proxysvc.rb restart -- br1 7777:10.2.51.21:3640 4321:10.2.51.21:3640
 
 - hosts: 'guest'
   tasks:
