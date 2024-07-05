@@ -11,7 +11,7 @@ def iptables_cmd(args, table = 'nat', command = '-I', chain = 'POSTROUTING'):
     return f"{_check} || {_apply}"
 
 def ip_rule_replace_cmd(args):
-    _check = f"[ -n \"$(ip rule list {args})\" ]"
+    _check = f"test -n \"$(ip rule list {args})\""
     _apply = f"ip rule add {args}"
     return f"{_check} || {_apply}"
 

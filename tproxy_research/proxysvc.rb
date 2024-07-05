@@ -1,5 +1,8 @@
 #!/usr/bin/env ruby
 
+LOG_LOCATION = '/var/log'
+RUN_LOCATION = '/var/run'
+
 require 'async/io'
 require 'async/io/stream'
 require 'console'
@@ -13,36 +16,21 @@ $logger  = nil
 module TProxy
 
     class Single
-        def initialize(port, daddr, dport)
-            @endpoint = Async::IO::Endpoint.socket setup_socket('127.0.0.1', port, port)
-            @daddr, @dport = daddr, dport
+        def initialize(bport, daddr, dport)
+            @proxy_ep    = Async::IO::Endpoint.socket setup_socket('127.0.0.1', bport, bport)
+            @server_addr = daddr
+            @server_port = dport
         end
 
         def run
             Async do |task|
-                @endpoint.accept do |peer|
-                    $logger.debug(self) {"Accepting #{peer.remote_address.inspect}"}
-
-                    dendpoint = Async::IO::Endpoint.tcp(@daddr, @dport)
-
-                    dendpoint.connect do |dpeer|
-                        stream, dstream = Async::IO::Stream.new(peer), Async::IO::Stream.new(dpeer)
-
-                        glue_streams(stream, dstream, task).wait
-
-                        $logger.debug(self) {"Closing #{dpeer.remote_address.inspect}"}
-                        dpeer.close
-                    end
-
-                    $logger.debug(self) {"Closing #{peer.remote_address.inspect}"}
-                    peer.close
-                end
+                glue_peers task
             end
         end
 
         private
 
-        def setup_socket(addr, port, mark, listen = Socket::SOMAXCONN)
+        def setup_socket(baddr, bport, mark, listen = Socket::SOMAXCONN)
             sock = Socket.new Socket::AF_INET, Socket::SOCK_STREAM, 0
 
             sock.setsockopt Socket::SOL_SOCKET, Socket::SO_REUSEADDR, 1
@@ -50,9 +38,11 @@ module TProxy
 
             sock.setsockopt Socket::SOL_IP, Socket::IP_TRANSPARENT, 1
 
-            $logger.debug(self) {"Binding to #{Addrinfo.tcp(addr, port).inspect}"}
+            $logger.info(self) do
+                "Bind #{Addrinfo.tcp(baddr, bport).inspect}"
+            end
 
-            sock.bind Socket.pack_sockaddr_in(port, addr)
+            sock.bind Socket.pack_sockaddr_in(bport, baddr)
             sock.listen listen
             sock
         end
@@ -61,14 +51,14 @@ module TProxy
             Async do
                 concurrent = []
                 concurrent << task.async do
-                    while chunk = stream1.read_partial
+                    while (chunk = stream1.read_partial)
                         $logger.debug(self) {"REQ: `#{chunk}`"}
                         stream2.write chunk
                         stream2.flush
                     end
                 end
                 concurrent << task.async do
-                    while chunk = stream2.read_partial
+                    while (chunk = stream2.read_partial)
                         $logger.debug(self) {"RSP: `#{chunk}`"}
                         stream1.write chunk
                         stream1.flush
@@ -77,21 +67,59 @@ module TProxy
                 concurrent.each(&:wait)
             end
         end
+
+        def glue_peers(task)
+            @proxy_ep.accept do |client_peer|
+                $logger.debug(self) do
+                    "Accept #{client_peer.remote_address.inspect}"
+                end
+
+                begin
+                    server_ep = Async::IO::Endpoint.tcp @server_addr,
+                                                        @server_port
+                    server_ep.connect do |server_peer|
+                        client_stream, server_stream = Async::IO::Stream.new(client_peer),
+                                                       Async::IO::Stream.new(server_peer)
+
+                        glue_streams(client_stream, server_stream, task).wait
+
+                        $logger.debug(self) do
+                            "Close #{server_peer.remote_address.inspect}"
+                        end
+
+                        server_peer.close
+                    end
+                rescue Errno::ECONNREFUSED,
+                       Errno::ECONNRESET,
+                       Errno::EHOSTUNREACH,
+                       Errno::ETIMEDOUT => e
+                        $logger.error(self) do
+                            e.message
+                        end
+                end
+
+                $logger.debug(self) do
+                    "Close #{client_peer.remote_address.inspect}"
+                end
+
+                client_peer.close
+            end
+        end
     end
 
     class Multi
         def initialize
-            @proxy = []
+            @single = []
         end
 
         def add(port, daddr, dport)
-            @proxy << Single.new(port, daddr, dport)
+            @single << Single.new(port, daddr, dport)
         end
 
         def run
             Async do
-                @proxy.each do |service|
-                    service.run
+                @single.each do |single|
+                    single.run
                 end
             end
         end
@@ -120,8 +148,8 @@ module Daemons
                 }
             end
 
-            @options[:app_name] = @app_name = "one_tproxy_#{$options[:brdev]}"
-            @options[:dir]      = '/'
+            @options[:app_name] = @app_name = "tproxy_#{$options[:brdev]}"
+            @options[:dir]      = RUN_LOCATION
         end
     end
 
@@ -129,21 +157,21 @@ end
 
 Daemons.run_proc(nil) do
     CustomLogger = Console::Filter[debug: 0, info: 1, warn: 2, error: 3]
-    logfile      = File.open "/one_tproxy_#{$options[:brdev]}.json", 'a'
+    logfile      = File.open "#{LOG_LOCATION}/tproxy_#{$options[:brdev]}.json", 'a'
     logfile.sync = true
-    serialized   = Console::Output::Serialized.new logfile
+    serialized   = Console::Serialized::Logger.new logfile
     $logger      = CustomLogger.new serialized, level: 0
 
     if $options[:proxy].empty?
-        $logger.error(self) {'At least one bport:daddr:dport tuple must be provided.'}
+        $logger.error(self) {'At least single bport:daddr:dport triple must be provided.'}
         exit(-1)
     end
 
-    service = TProxy::Multi.new
+    multi = TProxy::Multi.new
 
     $options[:proxy].each do |item|
-        service.add item[:bport], item[:daddr], item[:dport]
+        multi.add item[:bport], item[:daddr], item[:dport]
     end
 
-    service.run
+    multi.run
 end

@@ -30,8 +30,10 @@
         version: "{{ item.version | d(omit) }}"
         user_install: false
       loop:
+        - name: console
+          version: 1.15.3
         - name: async-io
-          version: 1.42.1
+          version: 1.32.1
         - name: daemons
 
 - hosts: 'service'
@@ -117,6 +119,7 @@
         - func: iptables_cmd
           opts: { table: mangle, chain: PREROUTING }
           args: >-
+            -i br1
             -p tcp -m tcp
             -d 169.254.16.9
             --dport 5030
@@ -127,7 +130,7 @@
         - func: ip_route_replace_cmd
           opts: {}
           args: >-
-            local 0/0
+            local default
             dev lo
             table 5030
         - func: ip_rule_replace_cmd
@@ -139,6 +142,7 @@
         - func: iptables_cmd
           opts: { table: mangle, chain: PREROUTING }
           args: >-
+            -i br1
             -p tcp -m tcp
             -d 169.254.16.9
             --dport 1234
@@ -149,7 +153,7 @@
         - func: ip_route_replace_cmd
           opts: {}
           args: >-
-            local 0/0
+            local default
             dev lo
             table 1234
         - func: ip_rule_replace_cmd
