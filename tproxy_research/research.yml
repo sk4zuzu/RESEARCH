@@ -76,91 +76,75 @@
         # NOTE: this removes the requirement for adding route for 169.254.16.9 in guests
         - func: nft_cmd
           opts: {}
-          args: >-
-            add table bridge one_tproxy;
-            add chain bridge one_tproxy br1 { type filter hook prerouting priority dstnat; policy accept; };
-            add set bridge one_tproxy br1_dports { typeof tcp dport; };
-            add element bridge one_tproxy br1_dports { 1234, 5030 };
-            flush chain bridge one_tproxy br1;
-            add rule bridge one_tproxy br1 meta ibrname "br1" ip daddr 169.254.16.9 tcp dport @br1_dports counter meta pkttype set host ether daddr set {{ ansible_facts.br1.macaddress }} accept;
+          args: |
+            table bridge one_tproxy {
+              chain br1 {
+                type filter hook prerouting priority dstnat; policy accept;
+              }
+            }
 
-    - shell:
-        cmd: "{{ [item.args] | map(item.func, **item.opts) | first }}"
-      loop:
+            flush chain bridge one_tproxy br1
+
+            table bridge one_tproxy {
+              chain br1 {
+                meta ibrname "br1" ip daddr 169.254.16.9 tcp dport 1234 counter \
+                meta pkttype set host ether daddr set {{ ansible_facts.br1.macaddress }} accept
+                meta ibrname "br1" ip daddr 169.254.16.9 tcp dport 5030 counter \
+                meta pkttype set host ether daddr set {{ ansible_facts.br1.macaddress }} accept
+             }
+            }
+        - func: nft_cmd
+          opts: {}
+          args: |
+            table ip one_tproxy {
+              map proxies {
+                type ifname . ipv4_addr . inet_service : inet_service . ipv4_addr . inet_service . mark;
+                elements = {
+                  "br1" . 169.254.16.9 . 1234 : 4321 . 10.2.51.21 . 3640 . 16002,
+                  "br1" . 169.254.16.9 . 5030 : 7777 . 10.2.51.21 . 3640 . 16002,
+                }
+              }
+              chain br1 {
+                type filter hook prerouting priority mangle; policy accept;
+              }
+            }
+
+            flush chain ip one_tproxy br1
+
+            table ip one_tproxy {
+              chain br1 {
+                iifname "br1" meta l4proto tcp ip daddr 169.254.16.9 tcp dport 1234 counter \
+                mark set 16001 \
+                tproxy to 127.0.0.1:4321
+                iifname "br1" meta l4proto tcp ip daddr 169.254.16.9 tcp dport 5030 counter \
+                mark set 16001 \
+                tproxy to 127.0.0.1:7777
+              }
+            }
+        # routing rules to handle requests
+        - func: ip_route_replace_cmd
+          opts: {}
+          args: >-
+            local default
+            dev lo
+            table 16001
+        - func: ip_rule_replace_cmd
+          opts: {}
+          args: >-
+            fwmark 16001
+            lookup 16001
         # routing rules to handle responses
         - func: ip_route_replace_cmd
           opts: {}
           args: >-
             default
             dev br1
-            table 7777
+            table 16002
         - func: ip_rule_replace_cmd
           opts: {}
           args: >-
-            fwmark 7777
-            lookup 7777
-        # routing rules to handle responses
-        - func: ip_route_replace_cmd
-          opts: {}
-          args: >-
-            default
-            dev br1
-            table 4321
-        - func: ip_rule_replace_cmd
-          opts: {}
-          args: >-
-            fwmark 4321
-            lookup 4321
-
-    - shell:
-        cmd: "{{ [item.args] | map(item.func, **item.opts) | first }}"
-      loop:
-        # enable the usual TPROXY-like processing (redirect to 127.0.0.1:7777)
-        - func: iptables_cmd
-          opts: { table: mangle, chain: PREROUTING }
-          args: >-
-            -i br1
-            -p tcp -m tcp
-            -d 169.254.16.9
-            --dport 5030
-            -j TPROXY
-            --on-ip 127.0.0.1
-            --on-port 7777
-            --tproxy-mark 5030
-        - func: ip_route_replace_cmd
-          opts: {}
-          args: >-
-            local default
-            dev lo
-            table 5030
-        - func: ip_rule_replace_cmd
-          opts: {}
-          args: >-
-            fwmark 5030
-            lookup 5030
-        # enable the usual TPROXY-like processing (redirect to 127.0.0.1:4321)
-        - func: iptables_cmd
-          opts: { table: mangle, chain: PREROUTING }
-          args: >-
-            -i br1
-            -p tcp -m tcp
-            -d 169.254.16.9
-            --dport 1234
-            -j TPROXY
-            --on-ip 127.0.0.1
-            --on-port 4321
-            --tproxy-mark 1234
-        - func: ip_route_replace_cmd
-          opts: {}
-          args: >-
-            local default
-            dev lo
-            table 1234
-        - func: ip_rule_replace_cmd
-          opts: {}
-          args: >-
-            fwmark 1234
-            lookup 1234
+            fwmark 16002
+            lookup 16002
 
     - copy:
         dest: /proxysvc.rb
@@ -169,7 +153,7 @@
 
     - shell:
         cmd: >-
-          ruby /proxysvc.rb restart -- br1 7777:10.2.51.21:3640 4321:10.2.51.21:3640
+          ruby /proxysvc.rb restart
 
 - hosts: 'guest'
   tasks:

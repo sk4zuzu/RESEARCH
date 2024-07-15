@@ -1,25 +1,30 @@
-#!/usr/bin/env ruby
-
-LOG_LOCATION = '/var/log'
-RUN_LOCATION = '/var/run'
+# frozen_string_literal: true
 
 require 'async/io'
 require 'async/io/stream'
 require 'console'
 require 'daemons'
+require 'json'
+require 'open3'
 require 'resolv'
 require 'socket'
 
-$options = {}
-$logger  = nil
+LOG_LOCATION = '/var/log'
+RUN_LOCATION = '/var/run'
+
+$config = { :app_name => 'one_tproxy', :proxies => [] }
+$logger = nil
 
 module TProxy
 
+    # A single async TCP transparent proxy implementation, it binds to a single port and
+    # marks outgoing packets with SO_MARK.
     class Single
-        def initialize(bport, daddr, dport)
-            @proxy_ep    = Async::IO::Endpoint.socket setup_socket('127.0.0.1', bport, bport)
-            @server_addr = daddr
-            @server_port = dport
+
+        def initialize(bport, daddr, dport, smark)
+            @proxy_ep = Async::IO::Endpoint.socket setup_socket('127.0.0.1', bport, smark)
+            @daddr    = daddr
+            @dport    = dport
         end
 
         def run
@@ -30,11 +35,11 @@ module TProxy
 
         private
 
-        def setup_socket(baddr, bport, mark, listen = Socket::SOMAXCONN)
+        def setup_socket(baddr, bport, smark, listen = Socket::SOMAXCONN)
             sock = Socket.new Socket::AF_INET, Socket::SOCK_STREAM, 0
 
             sock.setsockopt Socket::SOL_SOCKET, Socket::SO_REUSEADDR, 1
-            sock.setsockopt Socket::SOL_SOCKET, Socket::SO_MARK, mark
+            sock.setsockopt Socket::SOL_SOCKET, Socket::SO_MARK, smark
 
             sock.setsockopt Socket::SOL_IP, Socket::IP_TRANSPARENT, 1
 
@@ -75,8 +80,8 @@ module TProxy
                 end
 
                 begin
-                    server_ep = Async::IO::Endpoint.tcp @server_addr,
-                                                        @server_port
+                    server_ep = Async::IO::Endpoint.tcp @daddr,
+                                                        @dport
                     server_ep.connect do |server_peer|
                         client_stream, server_stream = Async::IO::Stream.new(client_peer),
                                                        Async::IO::Stream.new(server_peer)
@@ -93,9 +98,9 @@ module TProxy
                        Errno::ECONNRESET,
                        Errno::EHOSTUNREACH,
                        Errno::ETIMEDOUT => e
-                        $logger.error(self) do
-                            e.message
-                        end
+                    $logger.error(self) do
+                        e.message
+                    end
                 end
 
                 $logger.debug(self) do
@@ -105,72 +110,66 @@ module TProxy
                 client_peer.close
             end
         end
+
     end
 
+    # Combine multiple proxies into one async service.
     class Multi
+
         def initialize
             @single = []
         end
 
-        def add(port, daddr, dport)
-            @single << Single.new(port, daddr, dport)
+        def add(bport, daddr, dport, smark)
+            @single << Single.new(bport, daddr, dport, smark)
+        rescue StandardError => e
+            $logger.error(self) do
+                e.message
+            end
         end
 
         def run
             Async do
-                @single.each do |single|
-                    single.run
-                end
+                # Run all proxies.
+                @single.each(&:run)
             end
         end
+
     end
 
 end
 
-module Daemons
-
-    class Controller
-        def setup_options
-            $options[:brdev] = @app_part[0]
-
-            raise StandardError, 'Bridge name must be provided.' \
-                if $options[:brdev].nil?
-
-            $options[:proxy] = @app_part[1..(-1)].to_a.each_with_object([]) do |triple, acc|
-                bport, daddr, dport = triple.split(%[:])
-
-                next if bport.nil? || daddr.nil? || dport.nil?
-
-                acc << {
-                    bport: Integer(bport),
-                    daddr: Addrinfo.ip(daddr).ip_address,
-                    dport: Integer(dport)
-                }
-            end
-
-            @options[:app_name] = @app_name = "tproxy_#{$options[:brdev]}"
-            @options[:dir]      = RUN_LOCATION
-        end
-    end
-
-end
-
-Daemons.run_proc(nil) do
-    CustomLogger = Console::Filter[debug: 0, info: 1, warn: 2, error: 3]
-    logfile      = File.open "#{LOG_LOCATION}/tproxy_#{$options[:brdev]}.json", 'a'
+Daemons.run_proc($config[:app_name], :dir => RUN_LOCATION) do
+    CustomLogger = Console::Filter[:debug => 0, :info => 1, :warn => 2, :error => 3]
+    logfile      = File.open "#{LOG_LOCATION}/#{$config[:app_name]}.log", 'a'
     logfile.sync = true
     serialized   = Console::Serialized::Logger.new logfile
-    $logger      = CustomLogger.new serialized, level: 0
+    $logger      = CustomLogger.new serialized, :level => 0
 
-    if $options[:proxy].empty?
-        $logger.error(self) {'At least single bport:daddr:dport triple must be provided.'}
+    o, e, s = Open3.capture3(*"nft --json list map ip #{$config[:app_name]} proxies".split(' '))
+
+    unless s.success?
+        $logger.error(self) {e}
+        exit(-1)
+    end
+
+    $config[:proxies] = \
+        JSON.parse(o)&.dig('nftables')
+                     &.find { |item| !item['map'].nil? }
+                     &.dig('map', 'elem')
+                     &.map { |item| item.map(&:values).flatten }
+                     .to_a
+
+    if $config[:proxies].empty?
+        $logger.error(self) {'No proxies defined.'}
         exit(-1)
     end
 
     multi = TProxy::Multi.new
 
-    $options[:proxy].each do |item|
-        multi.add item[:bport], item[:daddr], item[:dport]
+    # type ifname . ipv4_addr . inet_service : inet_service . ipv4_addr . inet_service . mark;
+    $config[:proxies].each do |_, _, _, bport, daddr, dport, smark|
+        multi.add bport, daddr, dport, smark
     end
 
     multi.run
