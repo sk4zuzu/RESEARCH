@@ -18,7 +18,9 @@
     - copy:
         dest: /etc/apt/sources.list.d/opennebula.list
         content: |
-          deb https://{{ ee_token }}@enterprise.opennebula.io/repo/{{ ee_version }}/Ubuntu/{{ ubuntu_version | default('20.04') }} stable opennebula
+          #deb https://{{ ee_token }}@enterprise.opennebula.io/repo/{{ ee_version }}/Ubuntu/{{ ubuntu_version | default('20.04') }} stable opennebula
+          deb [trusted=yes] http://10.2.11.30/repo/ubuntu2004/repo/Ubuntu/20.04/ stable opennebula
+          #deb [trusted=yes] file:///_shared/repo/ubuntu2004/opennebula-6.99.80-1-amd64/ ./
 
     - shell: |
         set -o errexit
@@ -98,6 +100,16 @@
         gawk -i inplace -f- /etc/one/oned.conf <<'EOF'
         BEGIN { update = "ONEGATE_ENDPOINT = \"{{ _endpoint }}\"" }
         /^#*ONEGATE_ENDPOINT[^=]*=/ { $0 = update; found = 1 }
+        { print }
+        END { if (!found) print update >>FILENAME }
+        EOF
+
+    - vars: { _endpoint: "http://169.254.169.254:5030" }
+      shell: |
+        set -o errexit
+        gawk -i inplace -f- /etc/one/oned.conf <<'EOF'
+        BEGIN { update = "ONEGATE_PROXY_ENDPOINT = \"{{ _endpoint }}\"" }
+        /^#*ONEGATE_PROXY_ENDPOINT[^=]*=/ { $0 = update; found = 1 }
         { print }
         END { if (!found) print update >>FILENAME }
         EOF

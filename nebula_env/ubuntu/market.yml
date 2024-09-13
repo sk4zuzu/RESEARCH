@@ -109,9 +109,11 @@
     - shell: |
         set -o errexit
 
+        rm -f /etc/nginx/sites-enabled/default
+
         cat >/etc/nginx/sites-available/market <<'EOF'
         server {
-          listen 80;
+          listen 80 default_server;
           server_name services storage;
           root /_shared/;
           location / {

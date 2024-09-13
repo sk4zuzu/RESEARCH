@@ -10,7 +10,7 @@ export
 
 all: solo
 
-solo: $(SELF)/hosts.ini $(SELF)/solo.yml
+solo: $(SELF)/hosts.ini $(SELF)/solo.yml $(SELF)/prometheus.yml #$(SELF)/onegate.yml
 	cd $(SELF)/ && ansible-playbook -vv -i $^
 
 nspawn: $(SELF)/nspawn.ini $(SELF)/solo.yml $(SELF)/apache2.yml $(SELF)/market.yml $(SELF)/dnsmasq.yml #$(SELF)/microenvs.yml
