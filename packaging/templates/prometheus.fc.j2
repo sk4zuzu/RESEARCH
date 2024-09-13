@@ -1,7 +1,8 @@
+/usr/lib/prometheus(/.*)?			gen_context(system_u:object_r:prometheus_usr_lib_t,s0)
 /var/lib/prometheus(/.*)?			gen_context(system_u:object_r:prometheus_var_lib_t,s0)
 
-/var/lib/prometheus/prometheus		--	gen_context(system_u:object_r:prometheus_exec_t,s0)
-/var/lib/prometheus/promtool		--	gen_context(system_u:object_r:prometheus_exec_t,s0)
+/usr/lib/prometheus/prometheus		--	gen_context(system_u:object_r:prometheus_exec_t,s0)
+/usr/lib/prometheus/promtool		--	gen_context(system_u:object_r:prometheus_exec_t,s0)
 
 /etc/systemd/system/prometheus.*	--      gen_context(system_u:object_r:prometheus_unit_file_t,s0)
 /usr/lib/systemd/system/prometheus.*	--	gen_context(system_u:object_r:prometheus_unit_file_t,s0)

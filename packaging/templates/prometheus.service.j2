@@ -8,7 +8,7 @@ Type=simple
 ExecStartPre=/usr/bin/install -m u=rwx,g=rx,o= -d /var/lib/prometheus/data/
 
 ExecStart=/usr/bin/prometheus \
-          --config.file=/var/lib/prometheus/prometheus.yml \
+          --config.file=/usr/lib/prometheus/prometheus.yml \
           --storage.tsdb.path=/var/lib/prometheus/data/
 
 [Install]

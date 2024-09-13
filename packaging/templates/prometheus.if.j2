@@ -50,8 +50,12 @@ interface(`prometheus_exec',`
 #
 interface(`prometheus_search_lib',`
 	gen_require(`
+		type prometheus_usr_lib_t;
 		type prometheus_var_lib_t;
 	')
+
+	allow $1 prometheus_usr_lib_t:dir search_dir_perms;
+	files_search_usr_lib($1)
 
 	allow $1 prometheus_var_lib_t:dir search_dir_perms;
 	files_search_var_lib($1)
@@ -69,8 +73,12 @@ interface(`prometheus_search_lib',`
 #
 interface(`prometheus_read_lib_files',`
 	gen_require(`
+		type prometheus_usr_lib_t;
 		type prometheus_var_lib_t;
 	')
+
+	files_search_usr_lib($1)
+	read_files_pattern($1, prometheus_usr_lib_t, prometheus_usr_lib_t)
 
 	files_search_var_lib($1)
 	read_files_pattern($1, prometheus_var_lib_t, prometheus_var_lib_t)
@@ -88,8 +96,12 @@ interface(`prometheus_read_lib_files',`
 #
 interface(`prometheus_manage_lib_files',`
 	gen_require(`
+		type prometheus_usr_lib_t;
 		type prometheus_var_lib_t;
 	')
+
+	files_search_usr_lib($1)
+	manage_files_pattern($1, prometheus_usr_lib_t, prometheus_usr_lib_t)
 
 	files_search_var_lib($1)
 	manage_files_pattern($1, prometheus_var_lib_t, prometheus_var_lib_t)
@@ -107,8 +119,12 @@ interface(`prometheus_manage_lib_files',`
 #
 interface(`prometheus_manage_lib_dirs',`
 	gen_require(`
+		type prometheus_usr_lib_t;
 		type prometheus_var_lib_t;
 	')
+
+	files_search_usr_lib($1)
+	manage_dirs_pattern($1, prometheus_usr_lib_t, prometheus_usr_lib_t)
 
 	files_search_var_lib($1)
 	manage_dirs_pattern($1, prometheus_var_lib_t, prometheus_var_lib_t)
@@ -135,6 +151,7 @@ interface(`prometheus_manage_lib_dirs',`
 interface(`prometheus_admin',`
 	gen_require(`
 		type prometheus_t;
+		type prometheus_usr_lib_t;
 		type prometheus_var_lib_t;
 	')
 
@@ -145,7 +162,9 @@ interface(`prometheus_admin',`
         allow $1 prometheus_t:process ptrace;
     ')
 
+	files_search_usr_lib($1)
 	files_search_var_lib($1)
+	admin_pattern($1, prometheus_usr_lib_t)
 	admin_pattern($1, prometheus_var_lib_t)
 	optional_policy(`
 		systemd_passwd_agent_exec($1)
