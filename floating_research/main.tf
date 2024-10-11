@@ -1,5 +1,5 @@
 terraform {
-  required_providers {
+required_providers {
     opennebula = {
       source  = "terraform.local/local/opennebula"
       version = "0.0.1"
@@ -17,7 +17,7 @@ provider "opennebula" {
 locals {
   distros = {
     floating_alpine318 = {
-      image_path = "http://10.2.11.30/images/export/alpine318.qcow2"
+      image_path = "http://10.2.11.1/images/alpine318.qcow2"
     }
   }
   instances = {
@@ -52,9 +52,9 @@ resource "opennebula_virtual_machine" "machines" {
   permissions = "642"
   memory      = "1024"
 
-  cpumodel {
-    model = "host-passthrough"
-  }
+  #cpumodel {
+  #  model = "host-passthrough"
+  #}
   cpu  = "0.5"
   vcpu = "1"
 
