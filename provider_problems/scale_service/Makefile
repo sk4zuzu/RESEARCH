@@ -3,8 +3,8 @@ SELF  := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 
 GOPATH := $(SELF)/go/
 
-GOCA_GIT     := $(HOME)/_git/one/src/oca/go/src/goca
-PROVIDER_GIT := $(HOME)/_git/terraform-provider-opennebula/
+GOCA_GIT     := $(HOME)/one-ee/src/oca/go/src/goca
+PROVIDER_GIT := $(HOME)/terraform-provider-opennebula/
 
 LOCAL_PLUGINS  := $(SELF)/terraform.d/plugins/terraform.local/local/
 LOCAL_PROVIDER := $(LOCAL_PLUGINS)/opennebula/0.0.1/linux_amd64/terraform-provider-opennebula_v0.0.1_x1

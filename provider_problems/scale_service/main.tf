@@ -36,7 +36,7 @@ resource "opennebula_image" "router" {
   permissions  = "642"
   dev_prefix   = "vd"
   driver       = "qcow2"
-  path         = "http://10.2.11.30/images/service_VRouter.qcow2"
+  path         = "https://marketplace.opennebula.io//appliance/cc96d537-f6c7-499f-83f1-15ac4058750e/download/0"
 }
 
 resource "opennebula_image" "backend" {
@@ -46,7 +46,7 @@ resource "opennebula_image" "backend" {
   permissions  = "642"
   dev_prefix   = "vd"
   driver       = "qcow2"
-  path         = "http://10.2.11.30/images/alpine319.qcow2"
+  path         = "https://marketplace.opennebula.io//appliance/d74a5f80-20bd-013d-0e49-7875a4a4f528/download/0"
 }
 
 resource "opennebula_template" "vnf" {
