@@ -223,8 +223,8 @@ resource "opennebula_service" "service" {
 
   extra_template = jsonencode({
       networks_values = [
-        { service = { id = tostring(data.opennebula_virtual_network.service.id) } },
-        { private = { id = tostring(opennebula_virtual_network.reservation.id) } },
+        { service = { id = data.opennebula_virtual_network.service.id } },
+        { private = { id = tonumber(opennebula_virtual_network.reservation.id) } },
       ]
       roles = [
         { cardinality = 2 },

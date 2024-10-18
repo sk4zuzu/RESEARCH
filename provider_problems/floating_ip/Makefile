@@ -15,15 +15,19 @@ export
 
 all:
 
-.PHONY: build-provider
+.PHONY: build-provider clean-provider
 
 build-provider:
 	cd $(PROVIDER_GIT)/ && go mod edit -replace github.com/OpenNebula/one/src/oca/go/src/goca=$(GOCA_GIT)
 	cd $(PROVIDER_GIT)/ && go mod tidy
-	cd $(PROVIDER_GIT)/ && make build
+	cd $(PROVIDER_GIT)/ && make install
 	install -m u=rwx,go= -D $(GOPATH)/bin/terraform-provider-opennebula $(LOCAL_PROVIDER)
 	rm -f $(SELF)/.terraform.lock.hcl
 
+clean-provider:
+	rm -fr $(SELF)/terraform.d/
+	rm -fr $(SELF)/.terraform/
+	rm -f  $(SELF)/.terraform.lock.hcl
 .PHONY: init plan apply destroy
 
 init plan:
