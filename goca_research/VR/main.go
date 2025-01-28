@@ -1,13 +1,18 @@
 package main
 
 import (
+	"encoding/xml"
 	"fmt"
 	"log"
-
-	"encoding/xml"
+	//"strings"
+	//"unsafe"
 
 	goca "github.com/OpenNebula/one/src/oca/go/src/goca"
-	gdyn "github.com/OpenNebula/one/src/oca/go/src/goca/dynamic"
+	goca_dyn "github.com/OpenNebula/one/src/oca/go/src/goca/dynamic"
+	//goca_shared "github.com/OpenNebula/one/src/oca/go/src/goca/schemas/shared"
+	//goca_vn "github.com/OpenNebula/one/src/oca/go/src/goca/schemas/virtualnetwork"
+	//goca_vm "github.com/OpenNebula/one/src/oca/go/src/goca/schemas/vm"
+	//goca_vr "github.com/OpenNebula/one/src/oca/go/src/goca/schemas/virtualrouter"
 )
 
 const vrTemplate = `
@@ -45,9 +50,9 @@ const vrTemplate = `
 `
 
 func createVRTemplate(client *goca.Client) error {
-	document := &gdyn.Template{}
+	document := &goca_dyn.Template{}
 
-	err := xml.Unmarshal([]byte(vmTemplate), &document)
+	err := xml.Unmarshal([]byte(vrTemplate), &document)
 	if err != nil {
 		return err
 	}
@@ -70,11 +75,18 @@ func createVRTemplate(client *goca.Client) error {
 }
 
 func main() {
+	log.Println("asd")
+
 	one := goca.NewDefaultClient(
 		goca.NewConfig("oneadmin", "asd", "http://10.2.11.40:2633/RPC2"),
 	)
 
-	if err := createVMTemplate(one); err != nil {
-		log.Println(err)
+	ctrl := goca.NewController(one)
+
+	vnID, err := ctrl.VirtualNetworks().ByName("cipk")
+	if err != nil {
+		//log.Fatal(err)
 	}
+
+	fmt.Println(vnID)
 }
