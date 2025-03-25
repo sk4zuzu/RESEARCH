@@ -3,6 +3,9 @@ SELF  := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 
 define INPUT1
 <domain type='kvm' id='4'>
+  <os>
+    <nvram template='/OVMF_VARS.fd' format='raw'>/nvram-r2a1</nvram>
+  </os>
   <devices>
     <disk type='volume' device='disk'>
       <target dev='vda' bus='virtio'/>
@@ -27,6 +30,12 @@ define XSLT1
      <xsl:copy>
        <xsl:apply-templates select="node()|@*"/>
      </xsl:copy>
+  </xsl:template>
+
+  <xsl:template match="/domain/os/nvram">
+    <nvram templateFormat="raw">
+      <xsl:apply-templates select="@*|node()"/>
+    </nvram>
   </xsl:template>
 
   <xsl:template match="/domain/devices/disk[@type='volume']/target/@bus">
