@@ -1,0 +1,7 @@
+/go/
+/.terraform/
+/terraform.d/
+/*.backup
+/*.tfstate
+/*.tfvars
+/*.lock.*

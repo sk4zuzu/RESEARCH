@@ -90,10 +90,10 @@ resource "opennebula_service_template" "asd" {
             # vm_template = tonumber(each.value)
 
             # PROBLEM 3 (NO EFFECT)
-            # template_id          = tonumber(each.value)
-            # vm_template_contents = <<-TEMPLATE
-            #   NIC = [ NETWORK_ID = ${data.opennebula_virtual_network.asd["service"].id} ]
-            # TEMPLATE
+            #vm_template          = tonumber(each.value)
+            #vm_template_contents = <<-TEMPLATE
+            #  NIC = [ NETWORK_ID = ${data.opennebula_virtual_network.asd["service"].id} ]
+            #TEMPLATE
 
             # PROBLEM 4 (FAILS)
             template_id       = tonumber(each.value)
@@ -112,7 +112,12 @@ resource "opennebula_service" "asd" {
   template_id = each.value
 
   extra_template = jsonencode({
-    roles = [{ cardinality = 1 }]
+    roles = [
+      {
+        name        = "role1"
+        cardinality = 1
+      },
+    ]
   })
 
   timeouts {
@@ -120,3 +125,68 @@ resource "opennebula_service" "asd" {
     delete = "5m"
   }
 }
+
+#resource "opennebula_template" "test" {
+#  name = "service-scale-test-tf"
+#
+#  cpu    = 1
+#  vcpu   = 1
+#  memory = 64
+#
+#  graphics {
+#    keymap = "en-us"
+#    listen = "0.0.0.0"
+#    type = "VNC"
+#  }
+#
+#  os {
+#    arch = "x86_64"
+#    boot = ""
+#  }
+#}
+#
+#resource "opennebula_service_template" "test" {
+#  name        = "service-scale-test-tf"
+#  template    = jsonencode({
+#    TEMPLATE = {
+#      BODY = {
+#        name       = "service"
+#        deployment = "straight"
+#        roles = [
+#          {
+#            name        = "role0"
+#            cooldown    = 5 # seconds
+#            type        = "vm"
+#            template_id = tonumber(opennebula_template.test.id)
+#          },
+#          {
+#            name        = "role1"
+#            parents     = ["role0"]
+#            cooldown    = 5 # seconds
+#            type        = "vm"
+#            template_id = tonumber(opennebula_template.test.id)
+#          },
+#        ]
+#      }
+#    }
+#  })
+#  lifecycle {
+#    ignore_changes = all
+#  }
+#}
+#
+#resource "opennebula_service" "test" {
+#  name           = "service-scale-test-tf"
+#  template_id    = opennebula_service_template.test.id
+#  extra_template = jsonencode({
+#    roles = [
+#      { cardinality = 1 },
+#      { cardinality = 1 },
+#    ]
+#  })
+#  timeouts {
+#    create = "2m"
+#    delete = "2m"
+#    update = "2m"
+#  }
+#}
